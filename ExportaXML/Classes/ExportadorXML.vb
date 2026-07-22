@@ -50,9 +50,41 @@ ORDER BY dt_impressao"
 
     End Sub
 
-    Private Shared Sub ExportarXml(zip As ZipArchive,
-                                   nomeArquivo As String,
-                                   valor As Object)
+    Public Shared Sub ExportarXml(
+    zip As ZipArchive,
+    nomeArquivo As String,
+    valor As Object)
+
+        Dim sql As String
+
+        If cod_empresa = 0 Then
+
+            sql =
+"SELECT
+    chave_cfe,
+    xml_autorizado,
+    xml_cancelado,
+    xml_inutilizacao_nfce
+FROM cupons
+WHERE dt_impressao >= @inicio
+AND dt_impressao < @fim
+ORDER BY dt_impressao"
+
+        Else
+
+            sql =
+"SELECT
+    chave_cfe,
+    xml_autorizado,
+    xml_cancelado,
+    xml_inutilizacao_nfce
+FROM cupons
+WHERE cod_empresa = @empresa
+AND dt_impressao >= @inicio
+AND dt_impressao < @fim
+ORDER BY dt_impressao"
+
+        End If
 
         If valor Is DBNull.Value Then Return
 
@@ -76,18 +108,35 @@ ORDER BY dt_impressao"
         dataInicial As Date,
         dataFinal As Date) As Integer
 
-        Dim sql As String =
-"SELECT COUNT(*)
-FROM cupons
-WHERE cod_empresa = @empresa
-AND dt_impressao >= @inicio
-AND dt_impressao < @fim"
+        Dim sql As String
+
+        If cod_empresa = 0 Then
+
+            sql =
+    "SELECT COUNT(*)
+     FROM cupons
+     WHERE dt_impressao >= @inicio
+     AND dt_impressao < @fim"
+
+        Else
+
+            sql =
+    "SELECT COUNT(*)
+     FROM cupons
+     WHERE cod_empresa = @empresa
+     AND dt_impressao >= @inicio
+     AND dt_impressao < @fim"
+
+        End If
 
         Using cmd As New NpgsqlCommand(sql, conn)
 
-            cmd.Parameters.AddWithValue("@empresa", cod_empresa)
             cmd.Parameters.AddWithValue("@inicio", dataInicial.Date)
             cmd.Parameters.AddWithValue("@fim", dataFinal.Date.AddDays(1))
+
+            If cod_empresa <> 0 Then
+                cmd.Parameters.AddWithValue("@empresa", cod_empresa)
+            End If
 
             Return Convert.ToInt32(cmd.ExecuteScalar())
 

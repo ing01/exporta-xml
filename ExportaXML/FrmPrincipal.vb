@@ -1,5 +1,5 @@
 ﻿Imports Npgsql
-Public Class Form1
+Partial Class FrmPrincipal
     Private Sub btnTestar_Click(sender As Object, e As EventArgs) Handles btnTestar.Click
 
         Try
@@ -165,11 +165,25 @@ Public Class Form1
 
     Private Sub btnBuscarEmpresa_Click(sender As Object, e As EventArgs) Handles btnBuscarEmpresa.Click
 
+        If Integer.Parse(txtCodEmpresa.Text) = 0 Then
+
+            lblCNPJ.Text = "TODAS AS EMPRESAS"
+            lblRazao.Text = "SERÃO EXPORTADOS TODOS OS XMLS"
+
+            lblCNPJ.Visible = True
+            lblRazao.Visible = True
+
+            Exit Sub
+
+        End If
+
         If String.IsNullOrWhiteSpace(txtCodEmpresa.Text) Then
             MessageBox.Show("Informe o código da empresa.")
             txtCodEmpresa.Focus()
             Exit Sub
         End If
+
+
 
         Using conn = Conexao.Abrir(
         txtServidor.Text,

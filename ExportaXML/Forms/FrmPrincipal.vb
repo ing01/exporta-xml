@@ -1,27 +1,5 @@
 ﻿Imports Npgsql
 Partial Class FrmPrincipal
-    Private Sub btnTestar_Click(sender As Object, e As EventArgs) Handles btnTestar.Click
-
-        Try
-
-            Dim conn = Conexao.Abrir(
-            txtServidor.Text,
-            Integer.Parse(txtPorta.Text),
-            txtBanco.Text,
-            txtUsuario.Text,
-            txtSenha.Text)
-
-            MessageBox.Show("Conectado com sucesso!")
-
-            conn.Close()
-
-        Catch ex As Exception
-
-            MessageBox.Show(ex.Message)
-
-        End Try
-
-    End Sub
 
     Private Sub btnExportar_Click(sender As Object, e As EventArgs) Handles btnExportar.Click
 
@@ -52,12 +30,14 @@ Partial Class FrmPrincipal
             lblStatus.Text = "Contando XMLs..."
             Application.DoEvents()
 
+            Dim cfg = ConfiguracaoService.Carregar()
+
             Using conn = Conexao.Abrir(
-            txtServidor.Text,
-            Integer.Parse(txtPorta.Text),
-            txtBanco.Text,
-            txtUsuario.Text,
-            txtSenha.Text)
+            cfg.Servidor,
+            cfg.Porta,
+            cfg.Banco,
+            cfg.Usuario,
+            cfg.Senha)
 
                 Dim total As Integer = ExportadorXML.ContarXMLs(
                 conn,
@@ -88,7 +68,33 @@ Partial Class FrmPrincipal
             lblStatus.Text = "Concluído!"
             lblStatus.Visible = True
 
-            MessageBox.Show("Exportação concluída!")
+            Dim resposta = MessageBox.Show(
+            "Exportação concluída." &
+            vbCrLf &
+            vbCrLf &
+            "Deseja enviar o ZIP por e-mail?",
+            "Exportação",
+            MessageBoxButtons.YesNo)
+
+            If resposta = DialogResult.Yes Then
+
+                Dim cfgEmail = ConfiguracaoService.Carregar()
+
+                EmailService.Enviar(
+                cfgEmail.ServidorSMTP,
+                cfgEmail.PortaSMTP,
+                cfgEmail.UsuarioSMTP,
+                cfgEmail.SenhaSMTP,
+                cfgEmail.EmailRemetente,
+                txtDestinatario.Text,
+                "XMLs Exportados",
+                "Segue em anexo o arquivo ZIP.",
+                txtDestino.Text,
+                cfgEmail.UsarSSL)
+
+                MessageBox.Show("E-mail enviado com sucesso!")
+
+            End If
 
         Catch ex As Exception
 
@@ -115,6 +121,17 @@ Partial Class FrmPrincipal
 
     End Sub
 
+    Private Sub AtualizarConfiguracoes()
+
+        Dim cfg = ConfiguracaoService.Carregar()
+
+        lbServ.Text = cfg.Servidor
+        lbPort.Text = cfg.Porta.ToString()
+        lbBan.Text = cfg.Banco
+        lbUser.Text = cfg.Usuario
+
+    End Sub
+
     Private Sub Form1_Load(sender As Object, e As EventArgs) Handles MyBase.Load
 
         lblCNPJ.Visible = False
@@ -128,39 +145,16 @@ Partial Class FrmPrincipal
         dtFim.Format = DateTimePickerFormat.Custom
         dtFim.CustomFormat = "dd/MM/yyyy"
 
-        Dim cfg As Configuracao = ConfiguracaoService.Carregar()
+        Dim cfg As Configuracoes = ConfiguracaoService.Carregar()
 
-        txtServidor.Text = cfg.Servidor
+        lbServ.Text = cfg.Servidor
+        lbPort.Text = cfg.Porta.ToString()
+        lbBan.Text = cfg.Banco
+        lbUser.Text = cfg.Usuario
 
-        If cfg.Porta = 0 Then
-            txtPorta.Text = "5434"
-        Else
-            txtPorta.Text = cfg.Porta.ToString()
-        End If
+        Label9.Text = cfg.Usuario
 
-        txtBanco.Text = cfg.Banco
-        txtUsuario.Text = cfg.Usuario
-        txtSenha.Text = cfg.Senha
-
-    End Sub
-
-    Private Sub Form1_FormClosing(sender As Object, e As FormClosingEventArgs) Handles Me.FormClosing
-
-        Dim cfg As New Configuracao
-
-        cfg.Servidor = txtServidor.Text
-        cfg.Banco = txtBanco.Text
-        cfg.Usuario = txtUsuario.Text
-        cfg.Senha = txtSenha.Text
-
-        Integer.TryParse(txtPorta.Text, cfg.Porta)
-
-        ConfiguracaoService.Salvar(cfg)
-
-    End Sub
-
-    Private Sub Label1_Click(sender As Object, e As EventArgs)
-
+        AtualizarConfiguracoes()
     End Sub
 
     Private Sub btnBuscarEmpresa_Click(sender As Object, e As EventArgs) Handles btnBuscarEmpresa.Click
@@ -185,12 +179,14 @@ Partial Class FrmPrincipal
 
 
 
+        Dim cfg = ConfiguracaoService.Carregar()
+
         Using conn = Conexao.Abrir(
-        txtServidor.Text,
-        Integer.Parse(txtPorta.Text),
-        txtBanco.Text,
-        txtUsuario.Text,
-        txtSenha.Text)
+        cfg.Servidor,
+        cfg.Porta,
+        cfg.Banco,
+        cfg.Usuario,
+        cfg.Senha)
 
             Dim empresa = EmpresaService.Buscar(
                     conn,
@@ -213,6 +209,26 @@ Partial Class FrmPrincipal
             End If
 
         End Using
+
+    End Sub
+
+    Private Sub btnConfigurarServidor_Click(sender As Object, e As EventArgs) Handles btnConfigurarServidor.Click
+
+        Dim frm As New FrmServidor
+
+        frm.ShowDialog()
+
+        AtualizarConfiguracoes()
+
+    End Sub
+
+    Private Sub btnConfigurarEmail_Click(sender As Object, e As EventArgs) Handles btnConfigurarEmail.Click
+
+        Dim frm As New FrmEmail
+
+        frm.ShowDialog()
+
+        AtualizarConfiguracoes()
 
     End Sub
 End Class

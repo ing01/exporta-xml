@@ -55,37 +55,6 @@ ORDER BY dt_impressao"
     nomeArquivo As String,
     valor As Object)
 
-        Dim sql As String
-
-        If cod_empresa = 0 Then
-
-            sql =
-"SELECT
-    chave_cfe,
-    xml_autorizado,
-    xml_cancelado,
-    xml_inutilizacao_nfce
-FROM cupons
-WHERE dt_impressao >= @inicio
-AND dt_impressao < @fim
-ORDER BY dt_impressao"
-
-        Else
-
-            sql =
-"SELECT
-    chave_cfe,
-    xml_autorizado,
-    xml_cancelado,
-    xml_inutilizacao_nfce
-FROM cupons
-WHERE cod_empresa = @empresa
-AND dt_impressao >= @inicio
-AND dt_impressao < @fim
-ORDER BY dt_impressao"
-
-        End If
-
         If valor Is DBNull.Value Then Return
 
         Dim xml = valor.ToString()
@@ -95,9 +64,7 @@ ORDER BY dt_impressao"
         Dim entry = zip.CreateEntry(nomeArquivo)
 
         Using sw As New StreamWriter(entry.Open())
-
             sw.Write(xml)
-
         End Using
 
     End Sub

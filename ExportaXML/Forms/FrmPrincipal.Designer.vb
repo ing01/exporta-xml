@@ -47,6 +47,7 @@ Partial Class FrmPrincipal
         Label4 = New Label()
         lblRazao = New Label()
         GroupBox1 = New GroupBox()
+        Label11 = New Label()
         Label5 = New Label()
         GroupBox2 = New GroupBox()
         lbUser = New Label()
@@ -61,7 +62,6 @@ Partial Class FrmPrincipal
         btnConfigurarEmail = New Button()
         GroupBox4 = New GroupBox()
         lblRemetente = New Label()
-        Label11 = New Label()
         chkTodos = New CheckBox()
         chkEmitidas = New CheckBox()
         chkCancelados = New CheckBox()
@@ -296,6 +296,16 @@ Partial Class FrmPrincipal
         GroupBox1.TabStop = False
         GroupBox1.Text = "Empresa"
         ' 
+        ' Label11
+        ' 
+        Label11.AutoSize = True
+        Label11.ForeColor = Color.Red
+        Label11.Location = New Point(6, 67)
+        Label11.Name = "Label11"
+        Label11.Size = New Size(192, 15)
+        Label11.TabIndex = 32
+        Label11.Text = "'0' para puxar de todas as empresas"
+        ' 
         ' Label5
         ' 
         Label5.AutoSize = True
@@ -447,16 +457,6 @@ Partial Class FrmPrincipal
         lblRemetente.Size = New Size(93, 15)
         lblRemetente.TabIndex = 32
         lblRemetente.Text = "emailRemetente"
-        ' 
-        ' Label11
-        ' 
-        Label11.AutoSize = True
-        Label11.ForeColor = Color.Red
-        Label11.Location = New Point(6, 67)
-        Label11.Name = "Label11"
-        Label11.Size = New Size(192, 15)
-        Label11.TabIndex = 32
-        Label11.Text = "'0' para puxar de todas as empresas"
         ' 
         ' chkTodos
         ' 

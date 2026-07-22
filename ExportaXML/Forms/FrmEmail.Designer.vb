@@ -23,6 +23,7 @@ Partial Class FrmEmail
     <System.Diagnostics.DebuggerStepThrough()> _
     Private Sub InitializeComponent()
         GroupBox2 = New GroupBox()
+        chkSSL = New CheckBox()
         txtRemetente = New TextBox()
         lblRemetente = New Label()
         btnSalvar = New Button()
@@ -35,7 +36,6 @@ Partial Class FrmEmail
         lbUsuario = New Label()
         txtSenha = New TextBox()
         lbSenha = New Label()
-        chkSSL = New CheckBox()
         GroupBox2.SuspendLayout()
         SuspendLayout()
         ' 
@@ -61,6 +61,16 @@ Partial Class FrmEmail
         GroupBox2.TabIndex = 34
         GroupBox2.TabStop = False
         GroupBox2.Text = "Conexão"
+        ' 
+        ' chkSSL
+        ' 
+        chkSSL.AutoSize = True
+        chkSSL.Location = New Point(160, 52)
+        chkSSL.Name = "chkSSL"
+        chkSSL.Size = New Size(44, 19)
+        chkSSL.TabIndex = 25
+        chkSSL.Text = "SSL"
+        chkSSL.UseVisualStyleBackColor = True
         ' 
         ' txtRemetente
         ' 
@@ -162,16 +172,6 @@ Partial Class FrmEmail
         lbSenha.Size = New Size(42, 15)
         lbSenha.TabIndex = 4
         lbSenha.Text = "Senha:"
-        ' 
-        ' chkSSL
-        ' 
-        chkSSL.AutoSize = True
-        chkSSL.Location = New Point(160, 52)
-        chkSSL.Name = "chkSSL"
-        chkSSL.Size = New Size(44, 19)
-        chkSSL.TabIndex = 25
-        chkSSL.Text = "SSL"
-        chkSSL.UseVisualStyleBackColor = True
         ' 
         ' FrmEmail
         ' 

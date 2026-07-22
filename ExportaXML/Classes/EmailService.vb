@@ -41,29 +41,21 @@ Public Class EmailService
         email.Body = builder.ToMessageBody()
 
         Using smtp As New SmtpClient()
-            smtp.ServerCertificateValidationCallback = Function(sender, certificate, chain, errors) True
 
-            Dim opcao As SecureSocketOptions
+            smtp.ServerCertificateValidationCallback =
+        Function(sender, certificate, chain, errors) True
 
-            If usarSSL Then
-                If porta = 465 Then
-                    opcao = SecureSocketOptions.SslOnConnect
-                Else
-                    opcao = SecureSocketOptions.StartTls
-                End If
-            Else
-                opcao = SecureSocketOptions.None
-            End If
+            smtp.Connect(
+        servidor,
+        porta,
+        SecureSocketOptions.Auto)
 
-            Try
-                smtp.Connect(servidor, porta, opcao)
-                smtp.Authenticate(usuario, senha)
-                smtp.Send(email)
-                smtp.Disconnect(True)
-            Catch ex As Exception
-                System.Windows.Forms.MessageBox.Show(ex.ToString(), "Falha ao enviar e-mail", System.Windows.Forms.MessageBoxButtons.OK, System.Windows.Forms.MessageBoxIcon.Error)
-                Throw
-            End Try
+            smtp.Authenticate(usuario, senha)
+
+            smtp.Send(email)
+
+            smtp.Disconnect(True)
+
         End Using
 
     End Sub

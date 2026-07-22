@@ -152,7 +152,7 @@ Partial Class FrmPrincipal
         lbBan.Text = cfg.Banco
         lbUser.Text = cfg.Usuario
 
-        Label9.Text = cfg.Usuario
+        lblRemetente.Text = cfg.UsuarioSMTP
 
         AtualizarConfiguracoes()
     End Sub
@@ -231,4 +231,5 @@ Partial Class FrmPrincipal
         AtualizarConfiguracoes()
 
     End Sub
+
 End Class

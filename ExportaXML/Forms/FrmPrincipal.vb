@@ -39,11 +39,26 @@ Partial Class FrmPrincipal
             cfg.Usuario,
             cfg.Senha)
 
+                ' Determina quais tipos serão incluídos
+                Dim incluirEmitidos = chkEmitidas.Checked
+                Dim incluirCancelados = chkCancelados.Checked
+                Dim incluirInutilizados = chkInutilizados.Checked
+
+                ' Se "Todos" estiver marcado ou nenhum filtro específico estiver marcado, incluir tudo
+                If chkTodos.Checked Or Not (incluirEmitidos Or incluirCancelados Or incluirInutilizados) Then
+                    incluirEmitidos = True
+                    incluirCancelados = True
+                    incluirInutilizados = True
+                End If
+
                 Dim total As Integer = ExportadorXML.ContarXMLs(
                 conn,
                 codigoEmpresa,
                 dtInicio.Value,
-                dtFim.Value)
+                dtFim.Value,
+                incluirEmitidos,
+                incluirCancelados,
+                incluirInutilizados)
 
                 pbExportacao.Minimum = 0
                 pbExportacao.Maximum = total
@@ -58,7 +73,10 @@ Partial Class FrmPrincipal
                 codigoEmpresa,
                 dtInicio.Value,
                 dtFim.Value,
-                txtDestino.Text)
+                txtDestino.Text,
+                incluirEmitidos,
+                incluirCancelados,
+                incluirInutilizados)
 
             End Using
 
@@ -155,6 +173,25 @@ Partial Class FrmPrincipal
         lblRemetente.Text = cfg.UsuarioSMTP
 
         AtualizarConfiguracoes()
+        ' Por padrão marcar "Todos"
+        chkTodos.Checked = True
+    End Sub
+
+    Private Sub chkTodos_CheckedChanged(sender As Object, e As EventArgs) Handles chkTodos.CheckedChanged
+        If chkTodos.Checked Then
+            chkEmitidas.Checked = False
+            chkCancelados.Checked = False
+            chkInutilizados.Checked = False
+        End If
+    End Sub
+
+    Private Sub chkStatus_CheckedChanged(sender As Object, e As EventArgs) Handles chkEmitidas.CheckedChanged, chkCancelados.CheckedChanged, chkInutilizados.CheckedChanged
+        If chkEmitidas.Checked Or chkCancelados.Checked Or chkInutilizados.Checked Then
+            chkTodos.Checked = False
+        Else
+            ' Se nenhum dos filtros específicos estiver marcado, voltar para Todos
+            chkTodos.Checked = True
+        End If
     End Sub
 
     Private Sub btnBuscarEmpresa_Click(sender As Object, e As EventArgs) Handles btnBuscarEmpresa.Click

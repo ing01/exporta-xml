@@ -8,7 +8,10 @@ Public Class ExportadorXML
         cod_empresa As Integer,
         dataInicial As Date,
         dataFinal As Date,
-        caminhoZip As String)
+        caminhoZip As String,
+        incluirEmitidos As Boolean,
+        incluirCancelados As Boolean,
+        incluirInutilizados As Boolean)
 
         Dim sql As String =
 "SELECT
@@ -19,8 +22,21 @@ Public Class ExportadorXML
 FROM cupons
 WHERE cod_empresa = @empresa
 AND dt_impressao >= @inicio
-AND dt_impressao < @fim
-ORDER BY dt_impressao"
+AND dt_impressao < @fim"
+
+        ' Aplicar filtro por tipos de XML quando solicitado (Emitidos/Cancelados/Inutilizados)
+        If Not (incluirEmitidos AndAlso incluirCancelados AndAlso incluirInutilizados) Then
+            Dim filtros As New List(Of String)
+            If incluirEmitidos Then filtros.Add("(xml_autorizado IS NOT NULL AND xml_autorizado <> '')")
+            If incluirCancelados Then filtros.Add("(xml_cancelado IS NOT NULL AND xml_cancelado <> '')")
+            If incluirInutilizados Then filtros.Add("(xml_inutilizacao_nfce IS NOT NULL AND xml_inutilizacao_nfce <> '')")
+
+            If filtros.Count > 0 Then
+                sql &= " AND (" & String.Join(" OR ", filtros) & ")"
+            End If
+        End If
+
+        sql &= vbCrLf & "ORDER BY dt_impressao"
 
         Using cmd As New NpgsqlCommand(sql, conn)
 
@@ -36,9 +52,17 @@ ORDER BY dt_impressao"
 
                         Dim chave = reader("chave_cfe").ToString()
 
-                        ExportarXml(zip, chave & ".xml", reader("xml_autorizado"))
-                        ExportarXml(zip, chave & "_cancelado.xml", reader("xml_cancelado"))
-                        ExportarXml(zip, chave & "_inutilizacao.xml", reader("xml_inutilizacao_nfce"))
+                        If incluirEmitidos Then
+                            ExportarXml(zip, chave & ".xml", reader("xml_autorizado"))
+                        End If
+
+                        If incluirCancelados Then
+                            ExportarXml(zip, chave & "_cancelado.xml", reader("xml_cancelado"))
+                        End If
+
+                        If incluirInutilizados Then
+                            ExportarXml(zip, chave & "_inutilizacao.xml", reader("xml_inutilizacao_nfce"))
+                        End If
 
                     End While
 
@@ -73,7 +97,10 @@ ORDER BY dt_impressao"
         conn As NpgsqlConnection,
         cod_empresa As Integer,
         dataInicial As Date,
-        dataFinal As Date) As Integer
+        dataFinal As Date,
+        incluirEmitidos As Boolean,
+        incluirCancelados As Boolean,
+        incluirInutilizados As Boolean) As Integer
 
         Dim sql As String
 
@@ -94,6 +121,18 @@ ORDER BY dt_impressao"
      AND dt_impressao >= @inicio
      AND dt_impressao < @fim"
 
+        End If
+
+        ' Aplicar filtro por tipos de XML (quando não for selecionar "todos")
+        If Not (incluirEmitidos AndAlso incluirCancelados AndAlso incluirInutilizados) Then
+            Dim filtros As New List(Of String)
+            If incluirEmitidos Then filtros.Add("(xml_autorizado IS NOT NULL AND xml_autorizado <> '')")
+            If incluirCancelados Then filtros.Add("(xml_cancelado IS NOT NULL AND xml_cancelado <> '')")
+            If incluirInutilizados Then filtros.Add("(xml_inutilizacao_nfce IS NOT NULL AND xml_inutilizacao_nfce <> '')")
+
+            If filtros.Count > 0 Then
+                sql &= " AND (" & String.Join(" OR ", filtros) & ")"
+            End If
         End If
 
         Using cmd As New NpgsqlCommand(sql, conn)

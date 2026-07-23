@@ -74,11 +74,11 @@
                 Exit Sub
             End If
 
-            If String.IsNullOrWhiteSpace(txtRemetente.Text) Then
-                MessageBox.Show("Informe o e-mail remetente.")
-                txtRemetente.Focus()
-                Exit Sub
-            End If
+            ' If String.IsNullOrWhiteSpace(txtRemetente.Text) Then
+            'MessageBox.Show("Informe o e-mail remetente.")
+            'txtRemetente.Focus()
+            'Exit Sub
+            'End If
 
             Dim destinatario As String =
                 InputBox(

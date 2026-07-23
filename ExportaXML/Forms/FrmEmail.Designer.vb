@@ -78,15 +78,17 @@ Partial Class FrmEmail
         txtRemetente.Name = "txtRemetente"
         txtRemetente.Size = New Size(172, 23)
         txtRemetente.TabIndex = 24
+        txtRemetente.Visible = False
         ' 
         ' lblRemetente
         ' 
         lblRemetente.AutoSize = True
-        lblRemetente.Location = New Point(21, 143)
+        lblRemetente.Location = New Point(14, 143)
         lblRemetente.Name = "lblRemetente"
-        lblRemetente.Size = New Size(67, 15)
+        lblRemetente.Size = New Size(74, 15)
         lblRemetente.TabIndex = 23
-        lblRemetente.Text = "Remetente:"
+        lblRemetente.Text = "E-mail Teste:"
+        lblRemetente.Visible = False
         ' 
         ' btnSalvar
         ' 
@@ -180,6 +182,7 @@ Partial Class FrmEmail
         ClientSize = New Size(316, 267)
         Controls.Add(GroupBox2)
         Name = "FrmEmail"
+        StartPosition = FormStartPosition.CenterScreen
         Text = "FrmEmail"
         GroupBox2.ResumeLayout(False)
         GroupBox2.PerformLayout()

@@ -90,7 +90,7 @@ Partial Class FrmPrincipal
             "Exportação concluída." &
             vbCrLf &
             vbCrLf &
-            "Deseja enviar o ZIP por e-mail?",
+            "Deseja enviar o arquivo por e-mail?",
             "Exportação",
             MessageBoxButtons.YesNo)
 
@@ -151,6 +151,7 @@ Partial Class FrmPrincipal
     End Sub
 
     Private Sub Form1_Load(sender As Object, e As EventArgs) Handles MyBase.Load
+        dgvCupons.AutoGenerateColumns = False
 
         lblCNPJ.Visible = False
         lblRazao.Visible = False
@@ -269,4 +270,44 @@ Partial Class FrmPrincipal
 
     End Sub
 
+    Private Sub btnPesquisar_Click(sender As Object, e As EventArgs) Handles btnPesquisar.Click
+
+        Dim cod_empresa As Integer
+
+        If Not Integer.TryParse(txtCodEmpresa.Text, cod_empresa) Then
+            MessageBox.Show("Código da empresa inválido.")
+            Exit Sub
+        End If
+
+        Dim incluirEmitidos = chkEmitidas.Checked
+        Dim incluirCancelados = chkCancelados.Checked
+        Dim incluirInutilizados = chkInutilizados.Checked
+
+        If chkTodos.Checked Or Not (incluirEmitidos Or incluirCancelados Or incluirInutilizados) Then
+            incluirEmitidos = True
+            incluirCancelados = True
+            incluirInutilizados = True
+        End If
+
+        Dim cfg = ConfiguracaoService.Carregar()
+
+        Using conn = Conexao.Abrir(
+        cfg.Servidor,
+        cfg.Porta,
+        cfg.Banco,
+        cfg.Usuario,
+        cfg.Senha)
+
+            dgvCupons.DataSource = ExportadorXML.BuscarCupons(
+            conn,
+            cod_empresa,
+            dtInicio.Value,
+            dtFim.Value,
+            incluirEmitidos,
+            incluirCancelados,
+            incluirInutilizados)
+
+        End Using
+
+    End Sub
 End Class

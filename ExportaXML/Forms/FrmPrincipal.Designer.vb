@@ -66,10 +66,19 @@ Partial Class FrmPrincipal
         chkEmitidas = New CheckBox()
         chkCancelados = New CheckBox()
         chkInutilizados = New CheckBox()
+        btnPesquisar = New Button()
+        dgvCupons = New DataGridView()
+        Numero = New DataGridViewTextBoxColumn()
+        Codigo = New DataGridViewTextBoxColumn()
+        Serie = New DataGridViewTextBoxColumn()
+        Chave = New DataGridViewTextBoxColumn()
+        Status = New DataGridViewTextBoxColumn()
+        Data = New DataGridViewTextBoxColumn()
         GroupBox1.SuspendLayout()
         GroupBox2.SuspendLayout()
         GroupBox3.SuspendLayout()
         GroupBox4.SuspendLayout()
+        CType(dgvCupons, ComponentModel.ISupportInitialize).BeginInit()
         SuspendLayout()
         ' 
         ' lbServidor
@@ -158,28 +167,33 @@ Partial Class FrmPrincipal
         ' 
         ' btnDestino
         ' 
+        btnDestino.BackColor = Color.Gold
+        btnDestino.FlatStyle = FlatStyle.Flat
         btnDestino.Font = New Font("Segoe UI Semibold", 9F, FontStyle.Bold, GraphicsUnit.Point, CByte(0))
-        btnDestino.Location = New Point(119, 145)
+        btnDestino.ForeColor = SystemColors.ActiveCaptionText
+        btnDestino.Location = New Point(31, 139)
         btnDestino.Name = "btnDestino"
-        btnDestino.Size = New Size(75, 23)
+        btnDestino.Size = New Size(135, 26)
         btnDestino.TabIndex = 14
-        btnDestino.Text = "Procurar"
-        btnDestino.UseVisualStyleBackColor = True
+        btnDestino.Text = "Selecionar Pasta"
+        btnDestino.UseVisualStyleBackColor = False
         ' 
         ' btnExportar
         ' 
+        btnExportar.BackColor = Color.ForestGreen
+        btnExportar.FlatStyle = FlatStyle.Flat
         btnExportar.Font = New Font("Segoe UI Semibold", 14.25F, FontStyle.Bold, GraphicsUnit.Point, CByte(0))
-        btnExportar.ForeColor = Color.FromArgb(CByte(40), CByte(167), CByte(69))
-        btnExportar.Location = New Point(278, 221)
+        btnExportar.ForeColor = Color.Honeydew
+        btnExportar.Location = New Point(172, 433)
         btnExportar.Name = "btnExportar"
         btnExportar.Size = New Size(260, 41)
         btnExportar.TabIndex = 16
         btnExportar.Text = "Exportar"
-        btnExportar.UseVisualStyleBackColor = True
+        btnExportar.UseVisualStyleBackColor = False
         ' 
         ' pbExportacao
         ' 
-        pbExportacao.Location = New Point(278, 268)
+        pbExportacao.Location = New Point(172, 480)
         pbExportacao.Name = "pbExportacao"
         pbExportacao.Size = New Size(265, 34)
         pbExportacao.TabIndex = 18
@@ -188,7 +202,7 @@ Partial Class FrmPrincipal
         ' 
         lblStatus.AutoSize = True
         lblStatus.Font = New Font("Segoe UI Semibold", 12F, FontStyle.Bold)
-        lblStatus.Location = New Point(278, 305)
+        lblStatus.Location = New Point(172, 517)
         lblStatus.Name = "lblStatus"
         lblStatus.Size = New Size(55, 21)
         lblStatus.TabIndex = 19
@@ -198,7 +212,7 @@ Partial Class FrmPrincipal
         ' 
         lblQuantidade.AutoSize = True
         lblQuantidade.Font = New Font("Segoe UI Semibold", 12F, FontStyle.Bold)
-        lblQuantidade.Location = New Point(549, 275)
+        lblQuantidade.Location = New Point(443, 487)
         lblQuantidade.Name = "lblQuantidade"
         lblQuantidade.Size = New Size(58, 21)
         lblQuantidade.TabIndex = 20
@@ -206,14 +220,17 @@ Partial Class FrmPrincipal
         ' 
         ' btnConfigurarServidor
         ' 
-        btnConfigurarServidor.Font = New Font("Segoe UI Semibold", 9F, FontStyle.Bold, GraphicsUnit.Point, CByte(0))
-        btnConfigurarServidor.ForeColor = SystemColors.Highlight
-        btnConfigurarServidor.Location = New Point(6, 82)
+        btnConfigurarServidor.BackColor = SystemColors.HotTrack
+        btnConfigurarServidor.Cursor = Cursors.Hand
+        btnConfigurarServidor.FlatStyle = FlatStyle.Flat
+        btnConfigurarServidor.Font = New Font("Segoe UI Semibold", 9F, FontStyle.Bold)
+        btnConfigurarServidor.ForeColor = SystemColors.GradientActiveCaption
+        btnConfigurarServidor.Location = New Point(6, 81)
         btnConfigurarServidor.Name = "btnConfigurarServidor"
-        btnConfigurarServidor.Size = New Size(119, 23)
+        btnConfigurarServidor.Size = New Size(148, 26)
         btnConfigurarServidor.TabIndex = 21
         btnConfigurarServidor.Text = "Configurar Servidor"
-        btnConfigurarServidor.UseVisualStyleBackColor = True
+        btnConfigurarServidor.UseVisualStyleBackColor = False
         ' 
         ' Label2
         ' 
@@ -393,7 +410,7 @@ Partial Class FrmPrincipal
         ' 
         Label1.AutoSize = True
         Label1.Font = New Font("Segoe UI Semibold", 12F, FontStyle.Bold, GraphicsUnit.Point, CByte(0))
-        Label1.Location = New Point(184, 275)
+        Label1.Location = New Point(78, 487)
         Label1.Name = "Label1"
         Label1.Size = New Size(88, 21)
         Label1.TabIndex = 34
@@ -426,14 +443,16 @@ Partial Class FrmPrincipal
         ' 
         ' btnConfigurarEmail
         ' 
+        btnConfigurarEmail.BackColor = SystemColors.HotTrack
+        btnConfigurarEmail.FlatStyle = FlatStyle.Flat
         btnConfigurarEmail.Font = New Font("Segoe UI Semibold", 9F, FontStyle.Bold, GraphicsUnit.Point, CByte(0))
-        btnConfigurarEmail.ForeColor = SystemColors.Highlight
+        btnConfigurarEmail.ForeColor = SystemColors.GradientActiveCaption
         btnConfigurarEmail.Location = New Point(6, 88)
         btnConfigurarEmail.Name = "btnConfigurarEmail"
-        btnConfigurarEmail.Size = New Size(119, 23)
+        btnConfigurarEmail.Size = New Size(148, 26)
         btnConfigurarEmail.TabIndex = 31
         btnConfigurarEmail.Text = "Configurar E-mail"
-        btnConfigurarEmail.UseVisualStyleBackColor = True
+        btnConfigurarEmail.UseVisualStyleBackColor = False
         ' 
         ' GroupBox4
         ' 
@@ -498,12 +517,86 @@ Partial Class FrmPrincipal
         chkInutilizados.Text = "Inutilizados"
         chkInutilizados.UseVisualStyleBackColor = True
         ' 
+        ' btnPesquisar
+        ' 
+        btnPesquisar.Location = New Point(208, 221)
+        btnPesquisar.Name = "btnPesquisar"
+        btnPesquisar.Size = New Size(124, 41)
+        btnPesquisar.TabIndex = 40
+        btnPesquisar.Text = "Pesquisar"
+        btnPesquisar.UseVisualStyleBackColor = True
+        ' 
+        ' dgvCupons
+        ' 
+        dgvCupons.AllowUserToAddRows = False
+        dgvCupons.AllowUserToDeleteRows = False
+        dgvCupons.BackgroundColor = SystemColors.ControlLight
+        dgvCupons.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.AutoSize
+        dgvCupons.Columns.AddRange(New DataGridViewColumn() {Numero, Codigo, Serie, Chave, Status, Data})
+        dgvCupons.GridColor = SystemColors.ActiveCaptionText
+        dgvCupons.Location = New Point(7, 277)
+        dgvCupons.Name = "dgvCupons"
+        dgvCupons.ReadOnly = True
+        dgvCupons.SelectionMode = DataGridViewSelectionMode.FullRowSelect
+        dgvCupons.Size = New Size(605, 150)
+        dgvCupons.TabIndex = 41
+        ' 
+        ' Numero
+        ' 
+        Numero.AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill
+        Numero.DataPropertyName = "Cupom"
+        Numero.HeaderText = "Cupom"
+        Numero.Name = "Numero"
+        Numero.ReadOnly = True
+        ' 
+        ' Codigo
+        ' 
+        Codigo.AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill
+        Codigo.DataPropertyName = "Empresa"
+        Codigo.HeaderText = "Empresa"
+        Codigo.Name = "Codigo"
+        Codigo.ReadOnly = True
+        ' 
+        ' Serie
+        ' 
+        Serie.AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill
+        Serie.DataPropertyName = "Serie"
+        Serie.HeaderText = "Série"
+        Serie.Name = "Serie"
+        Serie.ReadOnly = True
+        ' 
+        ' Chave
+        ' 
+        Chave.AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill
+        Chave.DataPropertyName = "Chave"
+        Chave.HeaderText = "Chave CFe"
+        Chave.Name = "Chave"
+        Chave.ReadOnly = True
+        ' 
+        ' Status
+        ' 
+        Status.AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill
+        Status.DataPropertyName = "Status"
+        Status.HeaderText = "Status"
+        Status.Name = "Status"
+        Status.ReadOnly = True
+        ' 
+        ' Data
+        ' 
+        Data.AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill
+        Data.DataPropertyName = "Data"
+        Data.HeaderText = "Data"
+        Data.Name = "Data"
+        Data.ReadOnly = True
+        ' 
         ' FrmPrincipal
         ' 
         AutoScaleDimensions = New SizeF(7F, 15F)
         AutoScaleMode = AutoScaleMode.Font
         BackColor = SystemColors.Control
-        ClientSize = New Size(624, 339)
+        ClientSize = New Size(624, 548)
+        Controls.Add(dgvCupons)
+        Controls.Add(btnPesquisar)
         Controls.Add(chkInutilizados)
         Controls.Add(chkCancelados)
         Controls.Add(chkEmitidas)
@@ -518,6 +611,7 @@ Partial Class FrmPrincipal
         Controls.Add(pbExportacao)
         Controls.Add(btnExportar)
         Name = "FrmPrincipal"
+        StartPosition = FormStartPosition.CenterScreen
         Text = "Exportador de XML"
         GroupBox1.ResumeLayout(False)
         GroupBox1.PerformLayout()
@@ -527,6 +621,7 @@ Partial Class FrmPrincipal
         GroupBox3.PerformLayout()
         GroupBox4.ResumeLayout(False)
         GroupBox4.PerformLayout()
+        CType(dgvCupons, ComponentModel.ISupportInitialize).EndInit()
         ResumeLayout(False)
         PerformLayout()
     End Sub
@@ -583,5 +678,13 @@ Partial Class FrmPrincipal
     Friend WithEvents chkEmitidas As CheckBox
     Friend WithEvents chkCancelados As CheckBox
     Friend WithEvents chkInutilizados As CheckBox
+    Friend WithEvents btnPesquisar As Button
+    Friend WithEvents dgvCupons As DataGridView
+    Friend WithEvents Numero As DataGridViewTextBoxColumn
+    Friend WithEvents Codigo As DataGridViewTextBoxColumn
+    Friend WithEvents Serie As DataGridViewTextBoxColumn
+    Friend WithEvents Chave As DataGridViewTextBoxColumn
+    Friend WithEvents Status As DataGridViewTextBoxColumn
+    Friend WithEvents Data As DataGridViewTextBoxColumn
 
 End Class

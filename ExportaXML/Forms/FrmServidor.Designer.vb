@@ -168,6 +168,7 @@ Partial Class FrmServidor
         ClientSize = New Size(215, 267)
         Controls.Add(GroupBox2)
         Name = "FrmServidor"
+        StartPosition = FormStartPosition.CenterScreen
         Text = "FrmServidor"
         GroupBox2.ResumeLayout(False)
         GroupBox2.PerformLayout()

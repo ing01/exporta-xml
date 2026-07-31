@@ -23,9 +23,6 @@ Partial Class FrmPrincipal
     <System.Diagnostics.DebuggerStepThrough()>
     Private Sub InitializeComponent()
         lbServidor = New Label()
-        lbPorta = New Label()
-        lbBanco = New Label()
-        lbUsuario = New Label()
         Label6 = New Label()
         Label7 = New Label()
         Label8 = New Label()
@@ -39,46 +36,42 @@ Partial Class FrmPrincipal
         lblQuantidade = New Label()
         btnConfigurarServidor = New Button()
         SaveFileDialog1 = New SaveFileDialog()
-        Label2 = New Label()
-        txtCodEmpresa = New TextBox()
-        btnBuscarEmpresa = New Button()
-        Label3 = New Label()
-        lblCNPJ = New Label()
-        Label4 = New Label()
-        lblRazao = New Label()
         GroupBox1 = New GroupBox()
-        Label11 = New Label()
+        cboEmpresa = New ComboBox()
         Label5 = New Label()
         GroupBox2 = New GroupBox()
-        lbUser = New Label()
-        lbBan = New Label()
-        lbPort = New Label()
         lbServ = New Label()
         GroupBox3 = New GroupBox()
         Label1 = New Label()
-        Label9 = New Label()
         Label10 = New Label()
         txtDestinatario = New TextBox()
         btnConfigurarEmail = New Button()
         GroupBox4 = New GroupBox()
-        lblRemetente = New Label()
         chkTodos = New CheckBox()
         chkEmitidas = New CheckBox()
         chkCancelados = New CheckBox()
         chkInutilizados = New CheckBox()
         btnPesquisar = New Button()
         dgvCupons = New DataGridView()
-        Numero = New DataGridViewTextBoxColumn()
+        Modelo = New DataGridViewTextBoxColumn()
+        Documento = New DataGridViewTextBoxColumn()
         Codigo = New DataGridViewTextBoxColumn()
         Serie = New DataGridViewTextBoxColumn()
         Chave = New DataGridViewTextBoxColumn()
         Status = New DataGridViewTextBoxColumn()
         Data = New DataGridViewTextBoxColumn()
+        GroupBox5 = New GroupBox()
+        GroupBox6 = New GroupBox()
+        rbAmbos = New RadioButton()
+        rbNFe = New RadioButton()
+        rbNFCe = New RadioButton()
         GroupBox1.SuspendLayout()
         GroupBox2.SuspendLayout()
         GroupBox3.SuspendLayout()
         GroupBox4.SuspendLayout()
         CType(dgvCupons, ComponentModel.ISupportInitialize).BeginInit()
+        GroupBox5.SuspendLayout()
+        GroupBox6.SuspendLayout()
         SuspendLayout()
         ' 
         ' lbServidor
@@ -89,33 +82,6 @@ Partial Class FrmPrincipal
         lbServidor.Size = New Size(53, 15)
         lbServidor.TabIndex = 0
         lbServidor.Text = "Servidor:"
-        ' 
-        ' lbPorta
-        ' 
-        lbPorta.AutoSize = True
-        lbPorta.Location = New Point(21, 34)
-        lbPorta.Name = "lbPorta"
-        lbPorta.Size = New Size(38, 15)
-        lbPorta.TabIndex = 1
-        lbPorta.Text = "Porta:"
-        ' 
-        ' lbBanco
-        ' 
-        lbBanco.AutoSize = True
-        lbBanco.Location = New Point(16, 49)
-        lbBanco.Name = "lbBanco"
-        lbBanco.Size = New Size(43, 15)
-        lbBanco.TabIndex = 2
-        lbBanco.Text = "Banco:"
-        ' 
-        ' lbUsuario
-        ' 
-        lbUsuario.AutoSize = True
-        lbUsuario.Location = New Point(9, 64)
-        lbUsuario.Name = "lbUsuario"
-        lbUsuario.Size = New Size(50, 15)
-        lbUsuario.TabIndex = 3
-        lbUsuario.Text = "Usuário:"
         ' 
         ' Label6
         ' 
@@ -184,7 +150,7 @@ Partial Class FrmPrincipal
         btnExportar.FlatStyle = FlatStyle.Flat
         btnExportar.Font = New Font("Segoe UI Semibold", 14.25F, FontStyle.Bold, GraphicsUnit.Point, CByte(0))
         btnExportar.ForeColor = Color.Honeydew
-        btnExportar.Location = New Point(172, 433)
+        btnExportar.Location = New Point(172, 473)
         btnExportar.Name = "btnExportar"
         btnExportar.Size = New Size(260, 41)
         btnExportar.TabIndex = 16
@@ -193,7 +159,7 @@ Partial Class FrmPrincipal
         ' 
         ' pbExportacao
         ' 
-        pbExportacao.Location = New Point(172, 480)
+        pbExportacao.Location = New Point(172, 520)
         pbExportacao.Name = "pbExportacao"
         pbExportacao.Size = New Size(265, 34)
         pbExportacao.TabIndex = 18
@@ -202,7 +168,7 @@ Partial Class FrmPrincipal
         ' 
         lblStatus.AutoSize = True
         lblStatus.Font = New Font("Segoe UI Semibold", 12F, FontStyle.Bold)
-        lblStatus.Location = New Point(172, 517)
+        lblStatus.Location = New Point(172, 557)
         lblStatus.Name = "lblStatus"
         lblStatus.Size = New Size(55, 21)
         lblStatus.TabIndex = 19
@@ -212,7 +178,7 @@ Partial Class FrmPrincipal
         ' 
         lblQuantidade.AutoSize = True
         lblQuantidade.Font = New Font("Segoe UI Semibold", 12F, FontStyle.Bold)
-        lblQuantidade.Location = New Point(443, 487)
+        lblQuantidade.Location = New Point(443, 527)
         lblQuantidade.Name = "lblQuantidade"
         lblQuantidade.Size = New Size(58, 21)
         lblQuantidade.TabIndex = 20
@@ -225,103 +191,31 @@ Partial Class FrmPrincipal
         btnConfigurarServidor.FlatStyle = FlatStyle.Flat
         btnConfigurarServidor.Font = New Font("Segoe UI Semibold", 9F, FontStyle.Bold)
         btnConfigurarServidor.ForeColor = SystemColors.GradientActiveCaption
-        btnConfigurarServidor.Location = New Point(6, 81)
+        btnConfigurarServidor.Location = New Point(6, 37)
         btnConfigurarServidor.Name = "btnConfigurarServidor"
         btnConfigurarServidor.Size = New Size(148, 26)
         btnConfigurarServidor.TabIndex = 21
         btnConfigurarServidor.Text = "Configurar Servidor"
         btnConfigurarServidor.UseVisualStyleBackColor = False
         ' 
-        ' Label2
-        ' 
-        Label2.AutoSize = True
-        Label2.Location = New Point(6, 23)
-        Label2.Name = "Label2"
-        Label2.Size = New Size(46, 15)
-        Label2.TabIndex = 23
-        Label2.Text = "Código"
-        ' 
-        ' txtCodEmpresa
-        ' 
-        txtCodEmpresa.Location = New Point(6, 41)
-        txtCodEmpresa.Name = "txtCodEmpresa"
-        txtCodEmpresa.Size = New Size(100, 23)
-        txtCodEmpresa.TabIndex = 24
-        ' 
-        ' btnBuscarEmpresa
-        ' 
-        btnBuscarEmpresa.Location = New Point(112, 41)
-        btnBuscarEmpresa.Name = "btnBuscarEmpresa"
-        btnBuscarEmpresa.Size = New Size(75, 23)
-        btnBuscarEmpresa.TabIndex = 25
-        btnBuscarEmpresa.Text = "Buscar"
-        btnBuscarEmpresa.UseVisualStyleBackColor = True
-        ' 
-        ' Label3
-        ' 
-        Label3.AutoSize = True
-        Label3.Font = New Font("Segoe UI Semibold", 9F, FontStyle.Bold)
-        Label3.Location = New Point(6, 98)
-        Label3.Name = "Label3"
-        Label3.Size = New Size(37, 15)
-        Label3.TabIndex = 26
-        Label3.Text = "CNPJ:"
-        ' 
-        ' lblCNPJ
-        ' 
-        lblCNPJ.AutoSize = True
-        lblCNPJ.Location = New Point(44, 98)
-        lblCNPJ.Name = "lblCNPJ"
-        lblCNPJ.Size = New Size(41, 15)
-        lblCNPJ.TabIndex = 27
-        lblCNPJ.Text = "Label4"
-        ' 
-        ' Label4
-        ' 
-        Label4.AutoSize = True
-        Label4.Font = New Font("Segoe UI Semibold", 9F, FontStyle.Bold)
-        Label4.Location = New Point(6, 119)
-        Label4.Name = "Label4"
-        Label4.Size = New Size(77, 15)
-        Label4.TabIndex = 28
-        Label4.Text = "Razão Social:"
-        ' 
-        ' lblRazao
-        ' 
-        lblRazao.AutoSize = True
-        lblRazao.Location = New Point(87, 119)
-        lblRazao.Name = "lblRazao"
-        lblRazao.Size = New Size(41, 15)
-        lblRazao.TabIndex = 29
-        lblRazao.Text = "Label5"
-        ' 
         ' GroupBox1
         ' 
-        GroupBox1.Controls.Add(Label11)
-        GroupBox1.Controls.Add(lblRazao)
-        GroupBox1.Controls.Add(Label2)
-        GroupBox1.Controls.Add(Label4)
-        GroupBox1.Controls.Add(txtCodEmpresa)
-        GroupBox1.Controls.Add(lblCNPJ)
-        GroupBox1.Controls.Add(btnBuscarEmpresa)
-        GroupBox1.Controls.Add(Label3)
+        GroupBox1.Controls.Add(cboEmpresa)
         GroupBox1.ForeColor = Color.FromArgb(CByte(51), CByte(51), CByte(51))
-        GroupBox1.Location = New Point(204, 12)
+        GroupBox1.Location = New Point(7, 12)
         GroupBox1.Name = "GroupBox1"
-        GroupBox1.Size = New Size(202, 174)
+        GroupBox1.Size = New Size(202, 49)
         GroupBox1.TabIndex = 30
         GroupBox1.TabStop = False
         GroupBox1.Text = "Empresa"
         ' 
-        ' Label11
+        ' cboEmpresa
         ' 
-        Label11.AutoSize = True
-        Label11.ForeColor = Color.Red
-        Label11.Location = New Point(6, 67)
-        Label11.Name = "Label11"
-        Label11.Size = New Size(192, 15)
-        Label11.TabIndex = 32
-        Label11.Text = "'0' para puxar de todas as empresas"
+        cboEmpresa.FormattingEnabled = True
+        cboEmpresa.Location = New Point(6, 19)
+        cboEmpresa.Name = "cboEmpresa"
+        cboEmpresa.Size = New Size(190, 23)
+        cboEmpresa.TabIndex = 33
         ' 
         ' Label5
         ' 
@@ -335,49 +229,16 @@ Partial Class FrmPrincipal
         ' 
         ' GroupBox2
         ' 
-        GroupBox2.Controls.Add(lbUser)
-        GroupBox2.Controls.Add(lbBan)
-        GroupBox2.Controls.Add(lbPort)
         GroupBox2.Controls.Add(lbServ)
         GroupBox2.Controls.Add(lbServidor)
-        GroupBox2.Controls.Add(lbPorta)
         GroupBox2.Controls.Add(btnConfigurarServidor)
-        GroupBox2.Controls.Add(lbBanco)
-        GroupBox2.Controls.Add(lbUsuario)
         GroupBox2.ForeColor = Color.FromArgb(CByte(51), CByte(51), CByte(51))
-        GroupBox2.Location = New Point(12, 12)
+        GroupBox2.Location = New Point(215, 12)
         GroupBox2.Name = "GroupBox2"
-        GroupBox2.Size = New Size(186, 114)
+        GroupBox2.Size = New Size(186, 67)
         GroupBox2.TabIndex = 32
         GroupBox2.TabStop = False
         GroupBox2.Text = "Conexão"
-        ' 
-        ' lbUser
-        ' 
-        lbUser.AutoSize = True
-        lbUser.Location = New Point(65, 63)
-        lbUser.Name = "lbUser"
-        lbUser.Size = New Size(40, 15)
-        lbUser.TabIndex = 25
-        lbUser.Text = "lbUser"
-        ' 
-        ' lbBan
-        ' 
-        lbBan.AutoSize = True
-        lbBan.Location = New Point(65, 48)
-        lbBan.Name = "lbBan"
-        lbBan.Size = New Size(50, 15)
-        lbBan.TabIndex = 24
-        lbBan.Text = "lbBanco"
-        ' 
-        ' lbPort
-        ' 
-        lbPort.AutoSize = True
-        lbPort.Location = New Point(65, 34)
-        lbPort.Name = "lbPort"
-        lbPort.Size = New Size(39, 15)
-        lbPort.TabIndex = 23
-        lbPort.Text = "lbPort"
         ' 
         ' lbServ
         ' 
@@ -410,25 +271,16 @@ Partial Class FrmPrincipal
         ' 
         Label1.AutoSize = True
         Label1.Font = New Font("Segoe UI Semibold", 12F, FontStyle.Bold, GraphicsUnit.Point, CByte(0))
-        Label1.Location = New Point(78, 487)
+        Label1.Location = New Point(78, 527)
         Label1.Name = "Label1"
         Label1.Size = New Size(88, 21)
         Label1.TabIndex = 34
         Label1.Text = "Progresso:"
         ' 
-        ' Label9
-        ' 
-        Label9.AutoSize = True
-        Label9.Location = New Point(6, 19)
-        Label9.Name = "Label9"
-        Label9.Size = New Size(67, 15)
-        Label9.TabIndex = 22
-        Label9.Text = "Remetente:"
-        ' 
         ' Label10
         ' 
         Label10.AutoSize = True
-        Label10.Location = New Point(6, 59)
+        Label10.Location = New Point(6, 22)
         Label10.Name = "Label10"
         Label10.Size = New Size(73, 15)
         Label10.TabIndex = 23
@@ -436,9 +288,9 @@ Partial Class FrmPrincipal
         ' 
         ' txtDestinatario
         ' 
-        txtDestinatario.Location = New Point(80, 51)
+        txtDestinatario.Location = New Point(6, 40)
         txtDestinatario.Name = "txtDestinatario"
-        txtDestinatario.Size = New Size(100, 23)
+        txtDestinatario.Size = New Size(174, 23)
         txtDestinatario.TabIndex = 30
         ' 
         ' btnConfigurarEmail
@@ -447,7 +299,7 @@ Partial Class FrmPrincipal
         btnConfigurarEmail.FlatStyle = FlatStyle.Flat
         btnConfigurarEmail.Font = New Font("Segoe UI Semibold", 9F, FontStyle.Bold, GraphicsUnit.Point, CByte(0))
         btnConfigurarEmail.ForeColor = SystemColors.GradientActiveCaption
-        btnConfigurarEmail.Location = New Point(6, 88)
+        btnConfigurarEmail.Location = New Point(6, 70)
         btnConfigurarEmail.Name = "btnConfigurarEmail"
         btnConfigurarEmail.Size = New Size(148, 26)
         btnConfigurarEmail.TabIndex = 31
@@ -456,31 +308,20 @@ Partial Class FrmPrincipal
         ' 
         ' GroupBox4
         ' 
-        GroupBox4.Controls.Add(lblRemetente)
-        GroupBox4.Controls.Add(Label9)
         GroupBox4.Controls.Add(btnConfigurarEmail)
         GroupBox4.Controls.Add(txtDestinatario)
         GroupBox4.Controls.Add(Label10)
-        GroupBox4.Location = New Point(12, 133)
+        GroupBox4.Location = New Point(215, 81)
         GroupBox4.Name = "GroupBox4"
-        GroupBox4.Size = New Size(186, 129)
+        GroupBox4.Size = New Size(186, 105)
         GroupBox4.TabIndex = 35
         GroupBox4.TabStop = False
         GroupBox4.Text = "E-mail"
         ' 
-        ' lblRemetente
-        ' 
-        lblRemetente.AutoSize = True
-        lblRemetente.Location = New Point(79, 19)
-        lblRemetente.Name = "lblRemetente"
-        lblRemetente.Size = New Size(93, 15)
-        lblRemetente.TabIndex = 32
-        lblRemetente.Text = "emailRemetente"
-        ' 
         ' chkTodos
         ' 
         chkTodos.AutoSize = True
-        chkTodos.Location = New Point(215, 192)
+        chkTodos.Location = New Point(6, 15)
         chkTodos.Name = "chkTodos"
         chkTodos.Size = New Size(58, 19)
         chkTodos.TabIndex = 36
@@ -490,7 +331,7 @@ Partial Class FrmPrincipal
         ' chkEmitidas
         ' 
         chkEmitidas.AutoSize = True
-        chkEmitidas.Location = New Point(291, 192)
+        chkEmitidas.Location = New Point(66, 15)
         chkEmitidas.Name = "chkEmitidas"
         chkEmitidas.Size = New Size(72, 19)
         chkEmitidas.TabIndex = 37
@@ -500,7 +341,7 @@ Partial Class FrmPrincipal
         ' chkCancelados
         ' 
         chkCancelados.AutoSize = True
-        chkCancelados.Location = New Point(381, 192)
+        chkCancelados.Location = New Point(6, 36)
         chkCancelados.Name = "chkCancelados"
         chkCancelados.Size = New Size(87, 19)
         chkCancelados.TabIndex = 38
@@ -510,7 +351,7 @@ Partial Class FrmPrincipal
         ' chkInutilizados
         ' 
         chkInutilizados.AutoSize = True
-        chkInutilizados.Location = New Point(486, 192)
+        chkInutilizados.Location = New Point(99, 36)
         chkInutilizados.Name = "chkInutilizados"
         chkInutilizados.Size = New Size(86, 19)
         chkInutilizados.TabIndex = 39
@@ -519,9 +360,9 @@ Partial Class FrmPrincipal
         ' 
         ' btnPesquisar
         ' 
-        btnPesquisar.Location = New Point(208, 221)
+        btnPesquisar.Location = New Point(7, 192)
         btnPesquisar.Name = "btnPesquisar"
-        btnPesquisar.Size = New Size(124, 41)
+        btnPesquisar.Size = New Size(185, 33)
         btnPesquisar.TabIndex = 40
         btnPesquisar.Text = "Pesquisar"
         btnPesquisar.UseVisualStyleBackColor = True
@@ -532,22 +373,28 @@ Partial Class FrmPrincipal
         dgvCupons.AllowUserToDeleteRows = False
         dgvCupons.BackgroundColor = SystemColors.ControlLight
         dgvCupons.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.AutoSize
-        dgvCupons.Columns.AddRange(New DataGridViewColumn() {Numero, Codigo, Serie, Chave, Status, Data})
+        dgvCupons.Columns.AddRange(New DataGridViewColumn() {Modelo, Documento, Codigo, Serie, Chave, Status, Data})
         dgvCupons.GridColor = SystemColors.ActiveCaptionText
-        dgvCupons.Location = New Point(7, 277)
+        dgvCupons.Location = New Point(7, 236)
         dgvCupons.Name = "dgvCupons"
         dgvCupons.ReadOnly = True
         dgvCupons.SelectionMode = DataGridViewSelectionMode.FullRowSelect
-        dgvCupons.Size = New Size(605, 150)
+        dgvCupons.Size = New Size(605, 231)
         dgvCupons.TabIndex = 41
         ' 
-        ' Numero
+        ' Modelo
         ' 
-        Numero.AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill
-        Numero.DataPropertyName = "Cupom"
-        Numero.HeaderText = "Cupom"
-        Numero.Name = "Numero"
-        Numero.ReadOnly = True
+        Modelo.DataPropertyName = "Modelo"
+        Modelo.HeaderText = "Modelo"
+        Modelo.Name = "Modelo"
+        Modelo.ReadOnly = True
+        ' 
+        ' Documento
+        ' 
+        Documento.DataPropertyName = "Documento"
+        Documento.HeaderText = "Documento"
+        Documento.Name = "Documento"
+        Documento.ReadOnly = True
         ' 
         ' Codigo
         ' 
@@ -589,18 +436,72 @@ Partial Class FrmPrincipal
         Data.Name = "Data"
         Data.ReadOnly = True
         ' 
+        ' GroupBox5
+        ' 
+        GroupBox5.Controls.Add(chkTodos)
+        GroupBox5.Controls.Add(chkEmitidas)
+        GroupBox5.Controls.Add(chkCancelados)
+        GroupBox5.Controls.Add(chkInutilizados)
+        GroupBox5.Location = New Point(7, 65)
+        GroupBox5.Name = "GroupBox5"
+        GroupBox5.Size = New Size(202, 60)
+        GroupBox5.TabIndex = 42
+        GroupBox5.TabStop = False
+        ' 
+        ' GroupBox6
+        ' 
+        GroupBox6.Controls.Add(rbAmbos)
+        GroupBox6.Controls.Add(rbNFe)
+        GroupBox6.Controls.Add(rbNFCe)
+        GroupBox6.Location = New Point(7, 125)
+        GroupBox6.Name = "GroupBox6"
+        GroupBox6.Size = New Size(202, 61)
+        GroupBox6.TabIndex = 43
+        GroupBox6.TabStop = False
+        ' 
+        ' rbAmbos
+        ' 
+        rbAmbos.AutoSize = True
+        rbAmbos.Location = New Point(128, 22)
+        rbAmbos.Name = "rbAmbos"
+        rbAmbos.Size = New Size(63, 19)
+        rbAmbos.TabIndex = 2
+        rbAmbos.TabStop = True
+        rbAmbos.Text = "Ambos"
+        rbAmbos.UseVisualStyleBackColor = True
+        ' 
+        ' rbNFe
+        ' 
+        rbNFe.AutoSize = True
+        rbNFe.Location = New Point(71, 22)
+        rbNFe.Name = "rbNFe"
+        rbNFe.Size = New Size(51, 19)
+        rbNFe.TabIndex = 1
+        rbNFe.TabStop = True
+        rbNFe.Text = "NF-e"
+        rbNFe.UseVisualStyleBackColor = True
+        ' 
+        ' rbNFCe
+        ' 
+        rbNFCe.AutoSize = True
+        rbNFCe.Location = New Point(6, 22)
+        rbNFCe.Name = "rbNFCe"
+        rbNFCe.Size = New Size(59, 19)
+        rbNFCe.TabIndex = 0
+        rbNFCe.TabStop = True
+        rbNFCe.Text = "NFC-e"
+        rbNFCe.UseVisualStyleBackColor = True
+        ' 
         ' FrmPrincipal
         ' 
         AutoScaleDimensions = New SizeF(7F, 15F)
         AutoScaleMode = AutoScaleMode.Font
         BackColor = SystemColors.Control
-        ClientSize = New Size(624, 548)
+        ClientSize = New Size(624, 584)
+        Controls.Add(GroupBox6)
+        Controls.Add(GroupBox5)
         Controls.Add(dgvCupons)
         Controls.Add(btnPesquisar)
-        Controls.Add(chkInutilizados)
-        Controls.Add(chkCancelados)
-        Controls.Add(chkEmitidas)
-        Controls.Add(chkTodos)
         Controls.Add(GroupBox4)
         Controls.Add(Label1)
         Controls.Add(GroupBox3)
@@ -614,7 +515,6 @@ Partial Class FrmPrincipal
         StartPosition = FormStartPosition.CenterScreen
         Text = "Exportador de XML"
         GroupBox1.ResumeLayout(False)
-        GroupBox1.PerformLayout()
         GroupBox2.ResumeLayout(False)
         GroupBox2.PerformLayout()
         GroupBox3.ResumeLayout(False)
@@ -622,14 +522,15 @@ Partial Class FrmPrincipal
         GroupBox4.ResumeLayout(False)
         GroupBox4.PerformLayout()
         CType(dgvCupons, ComponentModel.ISupportInitialize).EndInit()
+        GroupBox5.ResumeLayout(False)
+        GroupBox5.PerformLayout()
+        GroupBox6.ResumeLayout(False)
+        GroupBox6.PerformLayout()
         ResumeLayout(False)
         PerformLayout()
     End Sub
 
     Friend WithEvents lbServidor As Label
-    Friend WithEvents lbPorta As Label
-    Friend WithEvents lbBanco As Label
-    Friend WithEvents lbUsuario As Label
     Friend WithEvents lbSenha As Label
     Friend WithEvents Label6 As Label
     Friend WithEvents Label7 As Label
@@ -651,40 +552,34 @@ Partial Class FrmPrincipal
     Friend WithEvents lblQuantidade As Label
     Friend WithEvents btnConfigurarServidor As Button
     Friend WithEvents SaveFileDialog1 As SaveFileDialog
-    Friend WithEvents Label2 As Label
-    Friend WithEvents txtCodEmpresa As TextBox
-    Friend WithEvents btnBuscarEmpresa As Button
-    Friend WithEvents Label3 As Label
-    Friend WithEvents lblCNPJ As Label
-    Friend WithEvents Label4 As Label
-    Friend WithEvents lblRazao As Label
     Friend WithEvents GroupBox1 As GroupBox
     Friend WithEvents Label5 As Label
     Friend WithEvents GroupBox2 As GroupBox
     Friend WithEvents GroupBox3 As GroupBox
     Friend WithEvents Label1 As Label
-    Friend WithEvents Label9 As Label
     Friend WithEvents Label10 As Label
     Friend WithEvents txtDestinatario As TextBox
     Friend WithEvents btnConfigurarEmail As Button
     Friend WithEvents GroupBox4 As GroupBox
-    Friend WithEvents lbUser As Label
-    Friend WithEvents lbBan As Label
-    Friend WithEvents lbPort As Label
     Friend WithEvents lbServ As Label
-    Friend WithEvents lblRemetente As Label
-    Friend WithEvents Label11 As Label
     Friend WithEvents chkTodos As CheckBox
     Friend WithEvents chkEmitidas As CheckBox
     Friend WithEvents chkCancelados As CheckBox
     Friend WithEvents chkInutilizados As CheckBox
     Friend WithEvents btnPesquisar As Button
     Friend WithEvents dgvCupons As DataGridView
-    Friend WithEvents Numero As DataGridViewTextBoxColumn
+    Friend WithEvents GroupBox5 As GroupBox
+    Friend WithEvents GroupBox6 As GroupBox
+    Friend WithEvents rbAmbos As RadioButton
+    Friend WithEvents rbNFe As RadioButton
+    Friend WithEvents rbNFCe As RadioButton
+    Friend WithEvents Modelo As DataGridViewTextBoxColumn
+    Friend WithEvents Documento As DataGridViewTextBoxColumn
     Friend WithEvents Codigo As DataGridViewTextBoxColumn
     Friend WithEvents Serie As DataGridViewTextBoxColumn
     Friend WithEvents Chave As DataGridViewTextBoxColumn
     Friend WithEvents Status As DataGridViewTextBoxColumn
     Friend WithEvents Data As DataGridViewTextBoxColumn
+    Friend WithEvents cboEmpresa As ComboBox
 
 End Class

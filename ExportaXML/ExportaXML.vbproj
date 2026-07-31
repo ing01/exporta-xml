@@ -6,7 +6,12 @@
     <StartupObject>Sub Main</StartupObject>
     <UseWindowsForms>true</UseWindowsForms>
     <MyType>WindowsForms</MyType>
+    <ApplicationIcon>bin\Release\net10.0-windows\exporta.ico</ApplicationIcon>
   </PropertyGroup>
+
+  <ItemGroup>
+    <Content Include="bin\Release\net10.0-windows\exporta.ico" />
+  </ItemGroup>
 
   <ItemGroup>
     <Import Include="System.Data" />

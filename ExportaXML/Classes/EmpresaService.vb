@@ -37,4 +37,39 @@ Public Class EmpresaService
 
     End Function
 
+    Public Shared Function Listar(conn As NpgsqlConnection) As List(Of EmpresaItem)
+
+        Dim lista As New List(Of EmpresaItem)
+
+        lista.Add(New EmpresaItem With {
+            .Codigo = 0,
+            .Nome = "Todas as empresas"
+        })
+
+        Dim sql =
+    "SELECT codigo, razao
+FROM empresas
+ORDER BY codigo"
+
+        Using cmd As New NpgsqlCommand(sql, conn)
+
+            Using rd = cmd.ExecuteReader()
+
+                While rd.Read()
+
+                    lista.Add(New EmpresaItem With {
+                        .Codigo = rd.GetInt32(0),
+                        .Nome = rd.GetString(1)
+                    })
+
+                End While
+
+            End Using
+
+        End Using
+
+        Return lista
+
+    End Function
+
 End Class

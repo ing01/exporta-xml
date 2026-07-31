@@ -9,6 +9,28 @@ Public Class Conexao
         usuario As String,
         senha As String) As NpgsqlConnection
 
+        ' Usa porta padrão do PostgreSQL se valor inválido for informado
+        If porta <= 0 Then
+            porta = 5432
+        End If
+
+        ' Substitui servidor vazio por localhost para evitar ArgumentNullException do Npgsql
+        If String.IsNullOrWhiteSpace(servidor) Then
+            servidor = "localhost"
+        End If
+
+        If String.IsNullOrWhiteSpace(banco) Then
+            banco = "banco"
+        End If
+
+        If String.IsNullOrWhiteSpace(usuario) Then
+            usuario = "postgres"
+        End If
+
+        If String.IsNullOrWhiteSpace(senha) Then
+            senha = "ds_due339"
+        End If
+
         Dim connectionString As String =
             $"Host={servidor};" &
             $"Port={porta};" &

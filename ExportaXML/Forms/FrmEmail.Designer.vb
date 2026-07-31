@@ -190,8 +190,6 @@ Partial Class FrmEmail
     End Sub
 
     Friend WithEvents GroupBox2 As GroupBox
-    Friend WithEvents txtRemetente As TextBox
-    Friend WithEvents lblRemetente As Label
     Friend WithEvents btnSalvar As Button
     Friend WithEvents lbServidorSMTP As Label
     Friend WithEvents txtServidorSMTP As TextBox
@@ -203,4 +201,6 @@ Partial Class FrmEmail
     Friend WithEvents txtSenha As TextBox
     Friend WithEvents lbSenha As Label
     Friend WithEvents chkSSL As CheckBox
+    Friend WithEvents txtRemetente As TextBox
+    Friend WithEvents lblRemetente As Label
 End Class

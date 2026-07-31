@@ -8,9 +8,10 @@
         txtPortaSMTP.Text = cfg.PortaSMTP.ToString()
         txtUsuario.Text = cfg.UsuarioSMTP
         txtSenha.Text = cfg.SenhaSMTP
-        txtRemetente.Text = cfg.EmailRemetente
+        chkSSL.Checked = cfg.UsarSSL
 
     End Sub
+
 
     Private Sub btnSalvar_Click(sender As Object, e As EventArgs) Handles btnSalvar.Click
 
@@ -18,16 +19,20 @@
 
             Dim cfg = ConfiguracaoService.Carregar()
 
-            cfg.ServidorSMTP = txtServidorSMTP.Text
+            cfg.ServidorSMTP = txtServidorSMTP.Text.Trim()
 
             Dim porta As Integer
+
             If Integer.TryParse(txtPortaSMTP.Text, porta) Then
                 cfg.PortaSMTP = porta
+            Else
+                MessageBox.Show("Informe uma porta válida.")
+                Exit Sub
             End If
 
-            cfg.UsuarioSMTP = txtUsuario.Text
+            cfg.UsuarioSMTP = txtUsuario.Text.Trim()
             cfg.SenhaSMTP = txtSenha.Text
-            cfg.EmailRemetente = txtRemetente.Text
+            cfg.EmailRemetente = txtUsuario.Text.Trim()
             cfg.UsarSSL = chkSSL.Checked
 
             ConfiguracaoService.Salvar(cfg)
@@ -44,6 +49,7 @@
 
     End Sub
 
+
     Private Sub btnTestarEnvio_Click(sender As Object, e As EventArgs) Handles btnTestarEnvio.Click
 
         Try
@@ -54,6 +60,7 @@
                 Exit Sub
             End If
 
+
             Dim porta As Integer
 
             If Not Integer.TryParse(txtPortaSMTP.Text, porta) Then
@@ -62,11 +69,13 @@
                 Exit Sub
             End If
 
+
             If String.IsNullOrWhiteSpace(txtUsuario.Text) Then
-                MessageBox.Show("Informe o usuário.")
+                MessageBox.Show("Informe o usuário SMTP.")
                 txtUsuario.Focus()
                 Exit Sub
             End If
+
 
             If String.IsNullOrWhiteSpace(txtSenha.Text) Then
                 MessageBox.Show("Informe a senha.")
@@ -74,31 +83,42 @@
                 Exit Sub
             End If
 
-            ' If String.IsNullOrWhiteSpace(txtRemetente.Text) Then
-            'MessageBox.Show("Informe o e-mail remetente.")
-            'txtRemetente.Focus()
-            'Exit Sub
-            'End If
 
             Dim destinatario As String =
                 InputBox(
                     "Informe o e-mail que receberá o teste:",
                     "Teste de Envio")
 
+
             If String.IsNullOrWhiteSpace(destinatario) Then
                 Exit Sub
             End If
 
+
+            Try
+
+                Dim addr = New System.Net.Mail.MailAddress(destinatario)
+
+            Catch
+
+                MessageBox.Show("Informe um e-mail destinatário válido.")
+                Exit Sub
+
+            End Try
+
+
             EmailService.Testar(
-            txtServidorSMTP.Text,
-            porta,
-            txtUsuario.Text,
-            txtSenha.Text,
-            txtRemetente.Text,
-            destinatario,
-            chkSSL.Checked)
+                txtServidorSMTP.Text.Trim(),
+                porta,
+                txtUsuario.Text.Trim(),
+                txtSenha.Text,
+                txtUsuario.Text.Trim(),
+                destinatario.Trim(),
+                chkSSL.Checked)
+
 
             MessageBox.Show("E-mail enviado com sucesso!")
+
 
         Catch ex As Exception
 

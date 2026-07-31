@@ -21,10 +21,15 @@ Public Class Configuracoes
         Senha = String.Empty
 
         ServidorSMTP = String.Empty
-        PortaSMTP = 25
+        PortaSMTP = 0
         UsuarioSMTP = String.Empty
         SenhaSMTP = String.Empty
         EmailRemetente = String.Empty
         UsarSSL = True
     End Sub
+
+    Public Property UltimaEmpresa As Integer
+    Public Property UltimoDestinatario As String
+    Public Property UltimaPastaExportacao As String
+    Public Property UltimoModelo As Integer
 End Class

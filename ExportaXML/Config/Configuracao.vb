@@ -14,5 +14,4 @@
     Public Property SenhaSMTP As String
     Public Property Remetente As String
     Public Property SSL As Boolean
-
 End Class

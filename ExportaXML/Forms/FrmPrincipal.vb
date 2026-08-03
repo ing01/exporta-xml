@@ -64,6 +64,7 @@ New Date(
 
         lblQuantidade.Visible = False
         lblStatus.Visible = False
+        lblQtd.Visible = False
 
         dtInicio.Format = DateTimePickerFormat.Custom
         dtInicio.CustomFormat = "dd/MM/yyyy"
@@ -122,6 +123,10 @@ New Date(
     modelo)
 
         End Using
+
+        Dim dt As DataTable = CType(dgvCupons.DataSource, DataTable)
+        lblQtd.Text = $"XMLs encontrados: {dt.Rows.Count}"
+        lblQtd.Visible = True
 
     End Sub
 

@@ -65,6 +65,7 @@ Partial Class FrmPrincipal
         rbAmbos = New RadioButton()
         rbNFe = New RadioButton()
         rbNFCe = New RadioButton()
+        lblQtd = New Label()
         GroupBox1.SuspendLayout()
         GroupBox2.SuspendLayout()
         GroupBox3.SuspendLayout()
@@ -492,12 +493,23 @@ Partial Class FrmPrincipal
         rbNFCe.Text = "NFC-e"
         rbNFCe.UseVisualStyleBackColor = True
         ' 
+        ' lblQtd
+        ' 
+        lblQtd.AutoSize = True
+        lblQtd.Font = New Font("Segoe UI Semibold", 12F, FontStyle.Bold)
+        lblQtd.Location = New Point(337, 212)
+        lblQtd.Name = "lblQtd"
+        lblQtd.Size = New Size(58, 21)
+        lblQtd.TabIndex = 44
+        lblQtd.Text = "Quant."
+        ' 
         ' FrmPrincipal
         ' 
         AutoScaleDimensions = New SizeF(7F, 15F)
         AutoScaleMode = AutoScaleMode.Font
         BackColor = SystemColors.Control
         ClientSize = New Size(624, 584)
+        Controls.Add(lblQtd)
         Controls.Add(GroupBox6)
         Controls.Add(GroupBox5)
         Controls.Add(dgvCupons)
@@ -581,5 +593,6 @@ Partial Class FrmPrincipal
     Friend WithEvents Status As DataGridViewTextBoxColumn
     Friend WithEvents Data As DataGridViewTextBoxColumn
     Friend WithEvents cboEmpresa As ComboBox
+    Friend WithEvents lblQtd As Label
 
 End Class

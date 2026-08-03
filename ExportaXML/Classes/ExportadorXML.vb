@@ -456,7 +456,16 @@ AND COALESCE(arq_xml,'') <> ''"
     dt_impressao AS Data
 FROM cupons
 WHERE dt_impressao >= @inicio
-AND dt_impressao < @fim"
+AND dt_impressao < @fim
+AND (
+    (TRIM(COALESCE(inutilizada,''))='S' AND COALESCE(xml_gerado,'') <> '')
+    OR
+    (TRIM(COALESCE(cancelado,''))='S' AND COALESCE(xml_cancelado,'') <> '')
+    OR
+    (TRIM(COALESCE(inutilizada,''))<>'S'
+     AND TRIM(COALESCE(cancelado,''))<>'S'
+     AND COALESCE(xml_autorizado,'') <> '')
+)"
 
             If cod_empresa <> 0 Then
                 sql &= " AND cod_empresa=@empresa"
@@ -545,7 +554,16 @@ SELECT
     dt_impressao AS Data
 FROM cupons
 WHERE dt_impressao >= @inicio
-AND dt_impressao < @fim"
+AND dt_impressao < @fim
+AND (
+    (TRIM(COALESCE(inutilizada,''))='S' AND COALESCE(xml_gerado,'') <> '')
+    OR
+    (TRIM(COALESCE(cancelado,''))='S' AND COALESCE(xml_cancelado,'') <> '')
+    OR
+    (TRIM(COALESCE(inutilizada,''))<>'S'
+     AND TRIM(COALESCE(cancelado,''))<>'S'
+     AND COALESCE(xml_autorizado,'') <> '')
+)"
 
             If cod_empresa <> 0 Then
                 sql &= " AND cod_empresa=@empresa"

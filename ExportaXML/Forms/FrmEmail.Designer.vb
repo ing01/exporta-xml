@@ -23,6 +23,7 @@ Partial Class FrmEmail
     <System.Diagnostics.DebuggerStepThrough()> _
     Private Sub InitializeComponent()
         GroupBox2 = New GroupBox()
+        lblAlerta = New Label()
         chkSSL = New CheckBox()
         txtRemetente = New TextBox()
         lblRemetente = New Label()
@@ -41,6 +42,7 @@ Partial Class FrmEmail
         ' 
         ' GroupBox2
         ' 
+        GroupBox2.Controls.Add(lblAlerta)
         GroupBox2.Controls.Add(chkSSL)
         GroupBox2.Controls.Add(txtRemetente)
         GroupBox2.Controls.Add(lblRemetente)
@@ -61,6 +63,17 @@ Partial Class FrmEmail
         GroupBox2.TabIndex = 34
         GroupBox2.TabStop = False
         GroupBox2.Text = "Conexão"
+        ' 
+        ' lblAlerta
+        ' 
+        lblAlerta.AutoSize = True
+        lblAlerta.BackColor = SystemColors.Control
+        lblAlerta.ForeColor = Color.Red
+        lblAlerta.Location = New Point(1, 168)
+        lblAlerta.Name = "lblAlerta"
+        lblAlerta.Size = New Size(35, 15)
+        lblAlerta.TabIndex = 10
+        lblAlerta.Text = "Label"
         ' 
         ' chkSSL
         ' 
@@ -203,4 +216,5 @@ Partial Class FrmEmail
     Friend WithEvents chkSSL As CheckBox
     Friend WithEvents txtRemetente As TextBox
     Friend WithEvents lblRemetente As Label
+    Friend WithEvents lblAlerta As Label
 End Class

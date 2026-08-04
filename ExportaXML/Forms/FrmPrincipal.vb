@@ -47,6 +47,7 @@ New Date(
                     cboEmpresa.DataSource = EmpresaService.Listar(conn)
                     cboEmpresa.DisplayMember = "Nome"
                     cboEmpresa.ValueMember = "Codigo"
+                    cboEmpresa.ValueMember = "CNPJ"
 
                     If cboEmpresa.Items.Count > 0 Then
                         cboEmpresa.SelectedValue = cfg.UltimaEmpresa
@@ -444,4 +445,5 @@ New Date(
             chkTodos.Checked = True
         End If
     End Sub
+
 End Class

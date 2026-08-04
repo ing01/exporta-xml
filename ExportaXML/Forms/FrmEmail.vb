@@ -1,6 +1,10 @@
-﻿Public Class FrmEmail
+﻿Imports System.Reflection.Emit
+
+Public Class FrmEmail
 
     Private Sub FrmEmail_Load(sender As Object, e As EventArgs) Handles MyBase.Load
+
+        lblAlerta.Text = "A configuração deve " & vbCrLf & "ser feita com o" & vbCrLf & "servidor do GMAIL!"
 
         Dim cfg = ConfiguracaoService.Carregar()
 

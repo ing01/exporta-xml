@@ -47,7 +47,7 @@ Public Class EmpresaService
         })
 
         Dim sql =
-    "SELECT codigo, razao
+    "SELECT codigo, razao, cnpj
 FROM empresas
 ORDER BY codigo"
 
@@ -59,7 +59,8 @@ ORDER BY codigo"
 
                     lista.Add(New EmpresaItem With {
                         .Codigo = rd.GetInt32(0),
-                        .Nome = rd.GetString(1)
+                        .Nome = rd.GetString(1),
+                        .CNPJ = rd.GetString(2)
                     })
 
                 End While

@@ -1,7 +1,12 @@
 ﻿Imports System.Reflection.Emit
 
+''' <summary>
+''' Tela modal "Configurar E-mail" (aba Configurações → E-mail): edita e testa
+''' o SMTP usado tanto pelo envio manual quanto pelo Agendamento automático.
+''' </summary>
 Public Class FrmEmail
 
+    ''' <summary>Preenche os campos com o que já está salvo em config.json.</summary>
     Private Sub FrmEmail_Load(sender As Object, e As EventArgs) Handles MyBase.Load
 
         lblAlerta.Text = "A configuração deve " & vbCrLf & "ser feita com o" & vbCrLf & "servidor do GMAIL!"
@@ -17,6 +22,11 @@ Public Class FrmEmail
     End Sub
 
 
+    ''' <summary>
+    ''' Valida a porta e grava a configuração SMTP em config.json. O "usuário SMTP"
+    ''' digitado também vira o e-mail remetente (<c>EmailRemetente</c>) — a tela
+    ''' não tem um campo de remetente separado.
+    ''' </summary>
     Private Sub btnSalvar_Click(sender As Object, e As EventArgs) Handles btnSalvar.Click
 
         Try
@@ -54,6 +64,11 @@ Public Class FrmEmail
     End Sub
 
 
+    ''' <summary>
+    ''' Valida os campos da tela, pergunta (via InputBox) um e-mail de destino, e
+    ''' dispara um envio de teste real através de <see cref="EmailService.Testar"/>.
+    ''' Usa os valores digitados na tela, não precisa ter salvo antes.
+    ''' </summary>
     Private Sub btnTestarEnvio_Click(sender As Object, e As EventArgs) Handles btnTestarEnvio.Click
 
         Try

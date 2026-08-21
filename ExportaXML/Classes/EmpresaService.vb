@@ -1,7 +1,16 @@
 ﻿Imports Npgsql
 
+''' <summary>
+''' Consultas relacionadas às empresas cadastradas no banco (tabela "empresas").
+''' </summary>
 Public Class EmpresaService
 
+    ''' <summary>
+    ''' Busca uma empresa específica pelo código.
+    ''' </summary>
+    ''' <param name="conn">Conexão já aberta.</param>
+    ''' <param name="codigo">Código da empresa (coluna "codigo").</param>
+    ''' <returns>O objeto <see cref="Empresa"/> encontrado, ou Nothing se não existir.</returns>
     Public Shared Function Buscar(
         conn As NpgsqlConnection,
         codigo As Integer) As Empresa
@@ -37,6 +46,15 @@ Public Class EmpresaService
 
     End Function
 
+    ''' <summary>
+    ''' Lista todas as empresas cadastradas, para popular o combo "Empresa" da tela.
+    ''' </summary>
+    ''' <param name="conn">Conexão já aberta.</param>
+    ''' <returns>
+    ''' Lista de <see cref="EmpresaItem"/> sempre começando com um item sentinela
+    ''' Código=0 / Nome="Todas as empresas" — é assim que a tela representa
+    ''' "sem filtro de empresa" / "exportar todas de uma vez".
+    ''' </returns>
     Public Shared Function Listar(conn As NpgsqlConnection) As List(Of EmpresaItem)
 
         Dim lista As New List(Of EmpresaItem)

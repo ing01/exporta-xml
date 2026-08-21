@@ -78,6 +78,7 @@ Partial Class FrmEmail
         ' chkSSL
         ' 
         chkSSL.AutoSize = True
+        chkSSL.Enabled = False
         chkSSL.Location = New Point(160, 52)
         chkSSL.Name = "chkSSL"
         chkSSL.Size = New Size(44, 19)

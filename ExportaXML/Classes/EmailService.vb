@@ -3,8 +3,40 @@ Imports MailKit.Net.Smtp
 Imports MailKit.Security
 Imports MimeKit
 
+''' <summary>
+''' Envio de e-mails via SMTP (MailKit), usado tanto pelo envio manual após uma
+''' exportação quanto pelo agendamento automático e pelos alertas de falha.
+''' </summary>
 Public Class EmailService
 
+    ''' <summary>
+    ''' Monta e envia um e-mail com anexo opcional.
+    ''' </summary>
+    ''' <param name="servidor">Host do servidor SMTP (ex.: smtp.gmail.com).</param>
+    ''' <param name="porta">Porta do servidor SMTP (ex.: 587).</param>
+    ''' <param name="usuario">Usuário usado para autenticar no SMTP.</param>
+    ''' <param name="senha">Senha (ou senha de app) do usuário SMTP.</param>
+    ''' <param name="remetente">Endereço que aparece como remetente do e-mail.</param>
+    ''' <param name="destinatario">Endereço que vai receber o e-mail.</param>
+    ''' <param name="assunto">Assunto do e-mail.</param>
+    ''' <param name="mensagem">Corpo do e-mail em texto simples.</param>
+    ''' <param name="caminhoAnexo">
+    ''' Caminho de um arquivo a anexar. Se vazio/Nothing ou o arquivo não existir,
+    ''' o e-mail é enviado sem anexo (não gera erro).
+    ''' </param>
+    ''' <param name="usarSSL">
+    ''' Recebido por compatibilidade com quem chama, mas atualmente NÃO é usado:
+    ''' a conexão sempre usa <see cref="SecureSocketOptions.Auto"/>, que já decide
+    ''' sozinha se usa SSL/STARTTLS de acordo com a porta.
+    ''' </param>
+    ''' <remarks>
+    ''' ATENÇÃO: <c>ServerCertificateValidationCallback</c> está fixado para aceitar
+    ''' qualquer certificado do servidor SMTP, mesmo inválido/expirado/autoassinado.
+    ''' Isso evita erros de certificado em ambientes mal configurados, mas abre
+    ''' brecha para um ataque man-in-the-middle se o SMTP for acessado por uma rede
+    ''' não confiável. Lança <see cref="ArgumentException"/> se remetente,
+    ''' destinatário ou o formato de algum dos dois for inválido.
+    ''' </remarks>
     Public Shared Sub Enviar(
         servidor As String,
         porta As Integer,
@@ -60,6 +92,11 @@ Public Class EmailService
 
     End Sub
 
+    ''' <summary>
+    ''' Atalho para validar uma configuração de SMTP: envia um e-mail de teste
+    ''' fixo, sem anexo, usando as mesmas credenciais que seriam usadas de verdade.
+    ''' Usado pelo botão "Testar Envio" da tela de configuração de e-mail.
+    ''' </summary>
     Public Shared Sub Testar(
         servidor As String,
         porta As Integer,

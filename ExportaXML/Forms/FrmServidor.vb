@@ -1,4 +1,10 @@
-﻿Public Class FrmServidor
+﻿''' <summary>
+''' Tela modal "Configurar Servidor" (aba Configurações → Conexão): edita e
+''' testa os dados de conexão com o PostgreSQL do cliente.
+''' </summary>
+Public Class FrmServidor
+
+    ''' <summary>Preenche os campos com o que já está salvo em config.json.</summary>
     Private Sub FrmServidor_Load(sender As Object, e As EventArgs) Handles MyBase.Load
 
         Dim cfg = ConfiguracaoService.Carregar()
@@ -11,6 +17,11 @@
 
     End Sub
 
+    ''' <summary>
+    ''' Valida a porta e grava os dados de conexão em config.json. Fecha a tela
+    ''' com DialogResult.OK — não testa a conexão antes de salvar (use "Testar"
+    ''' pra isso, é uma ação separada).
+    ''' </summary>
     Private Sub btnSalvar_Click(sender As Object, e As EventArgs) Handles btnSalvar.Click
         Dim cfg = ConfiguracaoService.Carregar()
 
@@ -33,6 +44,11 @@
         Me.Close()
     End Sub
 
+    ''' <summary>
+    ''' Testa a conexão com os valores atualmente digitados na tela (não precisa
+    ''' ter salvo antes) — abre e fecha a conexão só pra confirmar que os dados
+    ''' estão certos, sem alterar nada no banco.
+    ''' </summary>
     Private Sub btnTestar_Click(sender As Object, e As EventArgs) Handles btnTestar.Click
         Try
 

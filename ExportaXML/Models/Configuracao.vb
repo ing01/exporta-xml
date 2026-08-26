@@ -8,7 +8,19 @@
 ''' </summary>
 Public Class Configuracoes
 
-    ' --- Conexão com o PostgreSQL do cliente ---
+    ''' <summary>
+    ''' Bancos Postgres configurados. Pode ter mais de um quando as empresas do
+    ''' cliente estão espalhadas em bancos diferentes (mesmo servidor ou não).
+    ''' Populado a partir de <see cref="Servidor"/>/<see cref="Porta"/>/etc. na
+    ''' migração de um config.json antigo — ver <see cref="ConfiguracaoService.Carregar"/>.
+    ''' </summary>
+    Public Property Conexoes As List(Of ConexaoBanco)
+
+    ''' <summary>
+    ''' OBSOLETO: conexão única de versões anteriores ao suporte a múltiplos
+    ''' bancos. Mantidos só para migrar um config.json antigo para
+    ''' <see cref="Conexoes"/> — não usar em código novo.
+    ''' </summary>
     Public Property Servidor As String
     Public Property Porta As Integer
     Public Property Banco As String
@@ -30,6 +42,8 @@ Public Class Configuracoes
     ''' para qualquer chave ausente no arquivo).
     ''' </summary>
     Public Sub New()
+        Conexoes = New List(Of ConexaoBanco)
+
         Servidor = String.Empty
         Porta = 0
         Banco = String.Empty
@@ -46,6 +60,7 @@ Public Class Configuracoes
         AgendamentoAtivo = False
         HoraAgendamento = 8
         MinutoAgendamento = 0
+        DiaAgendamento = 1
         EmailAlertaFalha = String.Empty
         UltimaCompetenciaExecutada = String.Empty
     End Sub
@@ -68,6 +83,14 @@ Public Class Configuracoes
     Public Property AgendamentoAtivo As Boolean
     Public Property HoraAgendamento As Integer
     Public Property MinutoAgendamento As Integer
+
+    ''' <summary>
+    ''' Dia do mês (1 a 31) em que o agendamento roda. Padrão 1 ("todo dia
+    ''' 01"). Se o mês não tiver esse dia (ex.: 31 em abril, 30/31 em
+    ''' fevereiro), <see cref="AgendamentoService.DiaEfetivo"/> ajusta pro
+    ''' último dia válido daquele mês.
+    ''' </summary>
+    Public Property DiaAgendamento As Integer
     Public Property EmailAlertaFalha As String
 
     ''' <summary>

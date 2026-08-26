@@ -8,4 +8,7 @@ Public Class FornecedorItem
     Public Property Nome As String
     Public Property CNPJ As String
 
+    ''' <summary>Banco de onde este fornecedor foi listado — sempre o mesmo da empresa selecionada na tela.</summary>
+    Public Property Conexao As ConexaoBanco
+
 End Class

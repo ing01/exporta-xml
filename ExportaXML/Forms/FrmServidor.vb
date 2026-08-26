@@ -1,46 +1,74 @@
-﻿''' <summary>
-''' Tela modal "Configurar Servidor" (aba Configurações → Conexão): edita e
-''' testa os dados de conexão com o PostgreSQL do cliente.
+''' <summary>
+''' Tela modal "Adicionar/Editar Banco" (aberta por <see cref="FrmBancos"/>):
+''' edita e testa os dados de UMA conexão Postgres. Não grava nada em
+''' config.json diretamente — só devolve a <see cref="ConexaoBanco"/> editada
+''' via <see cref="Resultado"/> quando fechada com <see cref="DialogResult.OK"/>;
+''' quem persiste a lista inteira é o chamador (<see cref="FrmBancos"/>).
 ''' </summary>
 Public Class FrmServidor
 
-    ''' <summary>Preenche os campos com o que já está salvo em config.json.</summary>
+    Private ReadOnly conexaoOriginal As ConexaoBanco
+
+    ''' <summary>Conexão editada, disponível depois que a tela fecha com DialogResult.OK.</summary>
+    <System.ComponentModel.Browsable(False)>
+    <System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)>
+    Public Property Resultado As ConexaoBanco
+
+    ''' <summary>
+    ''' </summary>
+    ''' <param name="conexaoExistente">
+    ''' A conexão a editar, ou Nothing para cadastrar uma nova.
+    ''' </param>
+    Public Sub New(Optional conexaoExistente As ConexaoBanco = Nothing)
+        InitializeComponent()
+        conexaoOriginal = conexaoExistente
+    End Sub
+
     Private Sub FrmServidor_Load(sender As Object, e As EventArgs) Handles MyBase.Load
+        If conexaoOriginal Is Nothing Then
+            txtPorta.Text = "5432"
+            Exit Sub
+        End If
 
-        Dim cfg = ConfiguracaoService.Carregar()
-
-        txtServidor.Text = cfg.Servidor
-        txtPorta.Text = cfg.Porta
-        txtBanco.Text = cfg.Banco
-        txtUsuario.Text = cfg.Usuario
-        txtSenha.Text = cfg.Senha
-
+        txtNome.Text = conexaoOriginal.Nome
+        txtServidor.Text = conexaoOriginal.Servidor
+        txtPorta.Text = conexaoOriginal.Porta.ToString()
+        txtBanco.Text = conexaoOriginal.Banco
+        txtUsuario.Text = conexaoOriginal.Usuario
+        txtSenha.Text = conexaoOriginal.Senha
     End Sub
 
     ''' <summary>
-    ''' Valida a porta e grava os dados de conexão em config.json. Fecha a tela
-    ''' com DialogResult.OK — não testa a conexão antes de salvar (use "Testar"
-    ''' pra isso, é uma ação separada).
+    ''' Valida nome/porta e devolve os dados digitados via <see cref="Resultado"/>,
+    ''' fechando a tela com DialogResult.OK.
     ''' </summary>
     Private Sub btnSalvar_Click(sender As Object, e As EventArgs) Handles btnSalvar.Click
-        Dim cfg = ConfiguracaoService.Carregar()
-
-        cfg.Servidor = txtServidor.Text
+        If String.IsNullOrWhiteSpace(txtNome.Text) Then
+            MessageBox.Show("Informe um nome para identificar este banco.", "Erro", MessageBoxButtons.OK, MessageBoxIcon.Warning)
+            Return
+        End If
 
         Dim porta As Integer
-        If Integer.TryParse(txtPorta.Text, porta) Then
-            cfg.Porta = porta
-        Else
+        If Not Integer.TryParse(txtPorta.Text, porta) Then
             MessageBox.Show("Porta inválida. Informe um número inteiro.", "Erro", MessageBoxButtons.OK, MessageBoxIcon.Warning)
             Return
         End If
 
-        cfg.Banco = txtBanco.Text
-        cfg.Usuario = txtUsuario.Text
-        cfg.Senha = txtSenha.Text
+        Resultado = New ConexaoBanco With {
+            .Nome = txtNome.Text.Trim(),
+            .Servidor = txtServidor.Text,
+            .Porta = porta,
+            .Banco = txtBanco.Text,
+            .Usuario = txtUsuario.Text,
+            .Senha = txtSenha.Text
+        }
 
-        ConfiguracaoService.Salvar(cfg)
         Me.DialogResult = DialogResult.OK
+        Me.Close()
+    End Sub
+
+    Private Sub btnCancelar_Click(sender As Object, e As EventArgs) Handles btnCancelar.Click
+        Me.DialogResult = DialogResult.Cancel
         Me.Close()
     End Sub
 
@@ -59,12 +87,14 @@ Public Class FrmServidor
             txtUsuario.Text,
             txtSenha.Text)
 
+                LogService.RegistrarAtividade($"Testar Conexão: {txtServidor.Text}:{txtPorta.Text}/{txtBanco.Text} -> sucesso")
                 MessageBox.Show("Conexão realizada com sucesso!")
 
             End Using
 
         Catch ex As Exception
 
+            LogService.RegistrarAtividade($"Testar Conexão: {txtServidor.Text}:{txtPorta.Text}/{txtBanco.Text} -> ERRO: {ex.Message}")
             MessageBox.Show("Erro ao conectar:" & vbCrLf & ex.Message)
 
         End Try

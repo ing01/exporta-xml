@@ -41,6 +41,14 @@ Public Class ExportadorXML
     ''' ele, a consulta falha com erro 42P08 sempre que o filtro estiver vazio.
     ''' Cada linha do resultado vira um arquivo dentro do zip, nomeado pela
     ''' chave de acesso, com sufixo <c>_cancelado</c>/<c>_inutilizacao</c> quando aplicável.
+    ''' Para inutilizados especificamente, o XML pode estar em uma de duas
+    ''' colunas dependendo de quando o cupom foi inutilizado: cupons antigos
+    ''' gravam em <c>xml_gerado</c> (comportamento anterior do PDV), cupons mais
+    ''' novos gravam em <c>xml_inutilizacao_nfce</c> (comportamento corrigido). A
+    ''' consulta usa <c>COALESCE(NULLIF(xml_inutilizacao_nfce, ''), xml_gerado)</c>
+    ''' pra pegar o que estiver preenchido, sem precisar saber de antemão qual
+    ''' coluna vale pra cada cupom. Isso só se aplica ao caso inutilizado —
+    ''' emitidos e cancelados continuam vindo de <c>xml_autorizado</c>/<c>xml_cancelado</c>, inalterados.
     ''' </remarks>
     Public Shared Sub ExportarNFCe(
         conn As NpgsqlConnection,
@@ -61,7 +69,7 @@ Public Class ExportadorXML
                 chave_cfe,
                 xml_autorizado,
                 xml_cancelado,
-                xml_gerado,
+                COALESCE(NULLIF(xml_inutilizacao_nfce, ''), xml_gerado) AS xml_inutilizado,
                 cancelado,
                 inutilizada
              FROM cupons
@@ -131,7 +139,7 @@ Public Class ExportadorXML
                         Dim inutilizada = reader("inutilizada").ToString.Trim.ToUpper()
 
                         If inutilizada = "S" Then
-                            ExportarXml(zip, chave & "_inutilizacao.xml", reader("xml_gerado"))
+                            ExportarXml(zip, chave & "_inutilizacao.xml", reader("xml_inutilizado"))
                         ElseIf cancelado = "S" Then
                             ExportarXml(zip, chave & "_cancelado.xml", reader("xml_cancelado"))
                         Else
@@ -849,7 +857,12 @@ Public Class ExportadorXML
     ''' Lista de empresas a exportar. Empresas com Codigo=0 (o item sentinela
     ''' "Todas as empresas") são ignoradas — filtradas internamente.
     ''' </param>
-    ''' <param name="caminhoFinal">Caminho do .zip consolidado final (sobrescreve se já existir).</param>
+    ''' <param name="caminhoFinal">
+    ''' Caminho do .zip consolidado final. Se já existir, as empresas desta
+    ''' chamada são ADICIONADAS a ele (ver <see cref="AbrirZip"/>) — quem quiser
+    ''' recomeçar do zero apaga o arquivo antes da primeira chamada (é assim que
+    ''' <see cref="FrmPrincipal"/> chama uma vez por banco configurado).
+    ''' </param>
     ''' <param name="atualizarStatus">
     ''' Callback opcional com mensagens tipo "Exportando empresa 2 de 5...".
     ''' </param>
@@ -948,11 +961,11 @@ Public Class ExportadorXML
 
             atualizarStatus?.Invoke("Montando ZIP final...")
 
-            If File.Exists(caminhoFinal) Then
-                File.Delete(caminhoFinal)
-            End If
-
-            Using zipFinal As ZipArchive = ZipFile.Open(caminhoFinal, ZipArchiveMode.Create)
+            ' AbrirZip reabre em modo Update se caminhoFinal já existir — de propósito,
+            ' pra permitir chamar este método uma vez por banco (empresas espalhadas em
+            ' bancos diferentes) e acumular tudo no mesmo ZIP final. Quem quiser um ZIP
+            ' do zero deve apagar caminhoFinal ANTES da primeira chamada.
+            Using zipFinal As ZipArchive = AbrirZip(caminhoFinal)
                 For Each caminhoZipEmpresa In arquivosGerados
                     Dim nomeArquivo As String = Path.GetFileName(caminhoZipEmpresa)
                     zipFinal.CreateEntryFromFile(caminhoZipEmpresa, nomeArquivo, CompressionLevel.Optimal)

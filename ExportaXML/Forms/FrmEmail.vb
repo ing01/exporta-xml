@@ -51,6 +51,7 @@ Public Class FrmEmail
 
             ConfiguracaoService.Salvar(cfg)
 
+            LogService.RegistrarAtividade($"E-mail salvo: SMTP {cfg.ServidorSMTP}:{cfg.PortaSMTP}, remetente ""{cfg.EmailRemetente}""")
             MessageBox.Show("Configuração salva com sucesso!")
 
             Me.Close()
@@ -136,11 +137,13 @@ Public Class FrmEmail
                 chkSSL.Checked)
 
 
+            LogService.RegistrarAtividade($"Testar Envio de E-mail: para ""{destinatario.Trim()}"" -> sucesso")
             MessageBox.Show("E-mail enviado com sucesso!")
 
 
         Catch ex As Exception
 
+            LogService.RegistrarAtividade($"Testar Envio de E-mail -> ERRO: {ex.Message}")
             MessageBox.Show(ex.Message)
 
         End Try

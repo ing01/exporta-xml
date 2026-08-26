@@ -1,5 +1,6 @@
 Imports Npgsql
 Imports System.IO
+Imports Microsoft.Extensions.Hosting.WindowsServices
 
 ''' <summary>
 ''' Agendamento automático de exportação mensal. Uma vez por mês (a partir do
@@ -30,12 +31,14 @@ Public Class AgendamentoService
     ''' <returns>
     ''' True somente se: o agendamento estiver habilitado (<c>AgendamentoAtivo</c>);
     ''' a competência do mês anterior AINDA NÃO tiver sido executada
-    ''' (<c>UltimaCompetenciaExecutada</c> diferente da competência alvo); e já
-    ''' tiver passado do horário configurado (<c>HoraAgendamento</c>/<c>MinutoAgendamento</c>) no dia de hoje.
+    ''' (<c>UltimaCompetenciaExecutada</c> diferente da competência alvo); hoje
+    ''' já tiver chegado no dia configurado (<c>DiaAgendamento</c>, ajustado
+    ''' pelo mês atual — ver <see cref="DiaEfetivo"/>); e já tiver passado do
+    ''' horário configurado (<c>HoraAgendamento</c>/<c>MinutoAgendamento</c>) no dia de hoje.
     ''' </returns>
     ''' <remarks>
-    ''' De propósito NÃO exige que hoje seja exatamente o dia 01: se o
-    ''' computador ficou desligado/suspenso no dia 01 e só foi ligado no dia 05,
+    ''' De propósito NÃO exige que hoje seja exatamente o dia configurado: se o
+    ''' computador ficou desligado/suspenso nesse dia e só foi ligado depois,
     ''' esta função ainda retorna True (a competência continua sendo a mesma,
     ''' "mês anterior"), então o agendamento "atrasado" roda na próxima chance.
     ''' </remarks>
@@ -45,8 +48,21 @@ Public Class AgendamentoService
         Dim competenciaAlvo As String = CompetenciaAnterior(Date.Today)
         If cfg.UltimaCompetenciaExecutada = competenciaAlvo Then Return False
 
+        If Date.Today.Day < DiaEfetivo(cfg.DiaAgendamento, Date.Today) Then Return False
+
         Dim horarioAgendado As New TimeSpan(cfg.HoraAgendamento, cfg.MinutoAgendamento, 0)
         Return DateTime.Now.TimeOfDay >= horarioAgendado
+    End Function
+
+    ''' <summary>
+    ''' Ajusta <paramref name="diaConfigurado"/> (1 a 31) pro mês de
+    ''' <paramref name="referencia"/>: se esse dia não existir nesse mês (ex.:
+    ''' 31 em abril, 30/31 em fevereiro), usa o último dia válido do mês em
+    ''' vez de "pular" pro mês seguinte.
+    ''' </summary>
+    Public Shared Function DiaEfetivo(diaConfigurado As Integer, referencia As Date) As Integer
+        Dim ultimoDiaDoMes As Integer = Date.DaysInMonth(referencia.Year, referencia.Month)
+        Return Math.Min(diaConfigurado, ultimoDiaDoMes)
     End Function
 
     ''' <summary>
@@ -54,9 +70,10 @@ Public Class AgendamentoService
     ''' exporta o ZIP consolidado de todas as empresas, envia o e-mail com o
     ''' relatório e atualiza <c>UltimaCompetenciaExecutada</c> em config.json.
     ''' </summary>
-    ''' <param name="conn">Conexão já aberta com o banco.</param>
     ''' <param name="cfg">
-    ''' Configuração atual. É modificada (campo <c>UltimaCompetenciaExecutada</c>)
+    ''' Configuração atual, incluindo <see cref="Configuracoes.Conexoes"/> — TODOS
+    ''' os bancos configurados são exportados, um de cada vez, acumulando tudo no
+    ''' mesmo ZIP final. É modificada (campo <c>UltimaCompetenciaExecutada</c>)
     ''' e regravada em disco quando a execução termina com sucesso.
     ''' </param>
     ''' <param name="atualizarStatus">
@@ -72,12 +89,12 @@ Public Class AgendamentoService
     ''' botão "Testar agora" (que ignora De propósito essa checagem). Cada
     ''' etapa e qualquer erro são gravados em
     ''' <c>%LocalAppData%\ExportaXML\Logs\Agendamento_{competencia}.log</c>. Se
-    ''' algo falhar no meio do caminho, o erro é capturado, logado, e um e-mail
-    ''' de alerta é disparado (ver <see cref="EnviarAlertaFalha"/>) — esta rotina
-    ''' nunca deixa uma exceção subir pra quem chamou.
+    ''' algo falhar no meio do caminho (mesmo que só num dos bancos), o erro é
+    ''' capturado, logado, e um e-mail de alerta é disparado (ver
+    ''' <see cref="EnviarAlertaFalha"/>) — esta rotina nunca deixa uma exceção
+    ''' subir pra quem chamou.
     ''' </remarks>
     Public Shared Sub ExecutarAgendamentoMensal(
-        conn As NpgsqlConnection,
         cfg As Configuracoes,
         Optional atualizarStatus As Action(Of String) = Nothing)
 
@@ -92,12 +109,19 @@ Public Class AgendamentoService
         Try
             atualizarStatus?.Invoke("Executando agendamento automático...")
 
-            Dim empresas As List(Of EmpresaItem) =
-                EmpresaService.Listar(conn).Where(Function(emp) emp.Codigo <> 0).ToList()
-
-            LogService.Registrar(caminhoLog, $"{empresas.Count} empresa(s) encontrada(s).")
-
-            Dim pasta As String = Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory)
+            ' Área de Trabalho não existe/não faz sentido rodando como Windows
+            ' Service sem sessão de usuário (LocalSystem) — nesse caso usa uma
+            ' pasta fixa em %ProgramData%, sempre acessível independente de
+            ' quem está logado.
+            Dim pasta As String
+            If WindowsServiceHelpers.IsWindowsService() Then
+                pasta = Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData),
+                    "ExportaXML", "Exportacoes")
+                Directory.CreateDirectory(pasta)
+            Else
+                pasta = Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory)
+            End If
             Dim nomeArquivo As String = ExportadorXML.NomeArquivoValido($"XMLs {competencia}") & ".zip"
             Dim caminhoZip As String = Path.Combine(pasta, nomeArquivo)
 
@@ -105,23 +129,32 @@ Public Class AgendamentoService
                 File.Delete(caminhoZip)
             End If
 
-            ExportadorXML.ExportarTodasEmpresas(
-                conn,
-                empresas,
-                dataInicial,
-                dataFinal,
-                caminhoZip,
-                True,
-                True,
-                True,
-                0,
-                Nothing,
-                Nothing,
-                "",
-                Sub(status As String)
-                    LogService.Registrar(caminhoLog, status)
-                    atualizarStatus?.Invoke(status)
-                End Sub)
+            For Each banco As ConexaoBanco In cfg.Conexoes
+                Using conn = Conexao.Abrir(banco.Servidor, banco.Porta, banco.Banco, banco.Usuario, banco.Senha)
+                    Dim empresas As List(Of EmpresaItem) =
+                        EmpresaService.Listar(conn).Where(Function(emp) emp.Codigo <> 0).ToList()
+
+                    LogService.Registrar(caminhoLog, $"{banco.Nome}: {empresas.Count} empresa(s) encontrada(s).")
+
+                    ExportadorXML.ExportarTodasEmpresas(
+                        conn,
+                        empresas,
+                        dataInicial,
+                        dataFinal,
+                        caminhoZip,
+                        True,
+                        True,
+                        True,
+                        0,
+                        Nothing,
+                        Nothing,
+                        "",
+                        Sub(status As String)
+                            LogService.Registrar(caminhoLog, $"{banco.Nome}: {status}")
+                            atualizarStatus?.Invoke(status)
+                        End Sub)
+                End Using
+            Next
 
             LogService.Registrar(caminhoLog, $"ZIP gerado em: {caminhoZip}")
 
@@ -154,12 +187,43 @@ Public Class AgendamentoService
 
             LogService.Registrar(caminhoLog, "===== Concluído com sucesso. =====")
             atualizarStatus?.Invoke("Agendamento concluído com sucesso.")
+            PendenciaAgendamentoService.Limpar()
 
         Catch ex As Exception
             LogService.Registrar(caminhoLog, "ERRO: " & ex.ToString())
             atualizarStatus?.Invoke("Falha no agendamento automático. Veja o log.")
 
+            ' Além do log e do e-mail de alerta (que também pode falhar, se o
+            ' problema for justamente no SMTP): grava uma pendência visível
+            ' (ver PendenciaAgendamentoService) e registra no Log de Eventos
+            ' do Windows — duas formas de alguém saber da falha que não
+            ' dependem do e-mail estar funcionando.
+            PendenciaAgendamentoService.Registrar(competencia, ex.Message)
+            RegistrarNoEventLog($"Falha no agendamento automático do ExportaXML (competência {competencia}): {ex.Message}")
+
             EnviarAlertaFalha(cfg, competencia, caminhoLog, ex)
+        End Try
+    End Sub
+
+    ''' <summary>
+    ''' Registra a falha no Log de Eventos do Windows (Visualizador de
+    ''' Eventos, categoria "Application"), como reforço pro cenário em que
+    ''' ninguém está com o app aberto na bandeja pra ver o balão de aviso.
+    ''' Melhor esforço: se a fonte de evento ainda não existir e o processo
+    ''' atual não tiver privilégio pra criá-la (app interativo sem elevação,
+    ''' antes do Windows Service ter rodado alguma vez), simplesmente não
+    ''' registra nada — não é uma falha crítica.
+    ''' </summary>
+    Private Shared Sub RegistrarNoEventLog(mensagem As String)
+        Try
+            Const origem As String = "ExportaXML"
+
+            If Not Diagnostics.EventLog.SourceExists(origem) Then
+                Diagnostics.EventLog.CreateEventSource(origem, "Application")
+            End If
+
+            Diagnostics.EventLog.WriteEntry(origem, mensagem, Diagnostics.EventLogEntryType.Error)
+        Catch
         End Try
     End Sub
 

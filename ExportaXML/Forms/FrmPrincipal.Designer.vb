@@ -28,32 +28,36 @@ Partial Class FrmPrincipal
         tabExportar = New TabPage()
         Label1 = New Label()
         grpFiltros = New GroupBox()
-        lblEmpresaFiltro = New Label()
-        cboEmpresa = New ComboBox()
-        lblPeriodo = New Label()
-        dtInicio = New DateTimePicker()
-        lblA1 = New Label()
-        dtFim = New DateTimePicker()
-        lblDirecao = New Label()
-        rbSaida = New RadioButton()
-        rbEntrada = New RadioButton()
-        lblFornecedor = New Label()
-        cboFornecedor = New ComboBox()
-        lblModelo = New Label()
-        rbNFCe = New RadioButton()
-        rbNFe = New RadioButton()
-        rbAmbos = New RadioButton()
+        GroupBox4 = New GroupBox()
         lblNumDoc = New Label()
         txbInicio = New TextBox()
         lblA2 = New Label()
         txbFim = New TextBox()
         lblSerieFiltro = New Label()
         txbSerie = New TextBox()
+        GroupBox3 = New GroupBox()
         lblStatusFiltro = New Label()
         chkTodos = New CheckBox()
         chkEmitidas = New CheckBox()
         chkCancelados = New CheckBox()
         chkInutilizados = New CheckBox()
+        GroupBox2 = New GroupBox()
+        lblModelo = New Label()
+        rbNFCe = New RadioButton()
+        rbNFe = New RadioButton()
+        rbAmbos = New RadioButton()
+        GroupBox1 = New GroupBox()
+        lblDirecao = New Label()
+        rbSaida = New RadioButton()
+        rbEntrada = New RadioButton()
+        lblEmpresaFiltro = New Label()
+        cboEmpresa = New ComboBox()
+        lblPeriodo = New Label()
+        dtInicio = New DateTimePicker()
+        lblA1 = New Label()
+        dtFim = New DateTimePicker()
+        lblFornecedor = New Label()
+        cboFornecedor = New ComboBox()
         grpAcao = New GroupBox()
         lblDestino = New Label()
         txtDestino = New TextBox()
@@ -87,36 +91,38 @@ Partial Class FrmPrincipal
         lblHoraAgendamento = New Label()
         dtpHoraAgendamento = New DateTimePicker()
         chkIniciarComWindows = New CheckBox()
+        chkManterSempreAtivo = New CheckBox()
+        chkDiaFixo = New CheckBox()
+        lblDiaPersonalizado = New Label()
+        nudDiaAgendamento = New NumericUpDown()
         lblEmailAlerta = New Label()
         txtEmailAlertaFalha = New TextBox()
         btnTestarAgendamento = New Button()
         FolderBrowserDialog1 = New FolderBrowserDialog()
         lblVersao = New Label()
         btnVerificarAtualizacao = New Button()
+        btnAjuda = New Button()
         tmrAtualizacao = New Timer(components)
         tmrAgendamento = New Timer(components)
         notifyIcon1 = New NotifyIcon(components)
         contextMenuTray = New ContextMenuStrip(components)
         AbrirToolStripMenuItem = New ToolStripMenuItem()
         SairToolStripMenuItem = New ToolStripMenuItem()
-        GroupBox1 = New GroupBox()
-        GroupBox2 = New GroupBox()
-        GroupBox3 = New GroupBox()
-        GroupBox4 = New GroupBox()
         tabPrincipal.SuspendLayout()
         tabExportar.SuspendLayout()
         grpFiltros.SuspendLayout()
+        GroupBox4.SuspendLayout()
+        GroupBox3.SuspendLayout()
+        GroupBox2.SuspendLayout()
+        GroupBox1.SuspendLayout()
         grpAcao.SuspendLayout()
         CType(dgvCupons, ComponentModel.ISupportInitialize).BeginInit()
         tabConfiguracoes.SuspendLayout()
         grpConexao.SuspendLayout()
         grpEmail.SuspendLayout()
         grpAgendamento.SuspendLayout()
+        CType(nudDiaAgendamento, ComponentModel.ISupportInitialize).BeginInit()
         contextMenuTray.SuspendLayout()
-        GroupBox1.SuspendLayout()
-        GroupBox2.SuspendLayout()
-        GroupBox3.SuspendLayout()
-        GroupBox4.SuspendLayout()
         SuspendLayout()
         ' 
         ' tabPrincipal
@@ -179,6 +185,225 @@ Partial Class FrmPrincipal
         grpFiltros.TabStop = False
         grpFiltros.Text = "Filtros"
         ' 
+        ' GroupBox4
+        ' 
+        GroupBox4.Controls.Add(lblNumDoc)
+        GroupBox4.Controls.Add(txbInicio)
+        GroupBox4.Controls.Add(lblA2)
+        GroupBox4.Controls.Add(txbFim)
+        GroupBox4.Controls.Add(lblSerieFiltro)
+        GroupBox4.Controls.Add(txbSerie)
+        GroupBox4.Location = New Point(4, 161)
+        GroupBox4.Name = "GroupBox4"
+        GroupBox4.Size = New Size(299, 40)
+        GroupBox4.TabIndex = 29
+        GroupBox4.TabStop = False
+        ' 
+        ' lblNumDoc
+        ' 
+        lblNumDoc.AutoSize = True
+        lblNumDoc.Location = New Point(4, 14)
+        lblNumDoc.Name = "lblNumDoc"
+        lblNumDoc.Size = New Size(51, 15)
+        lblNumDoc.TabIndex = 15
+        lblNumDoc.Text = "Nº Doc.:"
+        ' 
+        ' txbInicio
+        ' 
+        txbInicio.Location = New Point(60, 11)
+        txbInicio.Name = "txbInicio"
+        txbInicio.Size = New Size(48, 21)
+        txbInicio.TabIndex = 16
+        ' 
+        ' lblA2
+        ' 
+        lblA2.AutoSize = True
+        lblA2.Location = New Point(113, 14)
+        lblA2.Name = "lblA2"
+        lblA2.Size = New Size(14, 15)
+        lblA2.TabIndex = 17
+        lblA2.Text = "a"
+        ' 
+        ' txbFim
+        ' 
+        txbFim.Location = New Point(132, 11)
+        txbFim.Name = "txbFim"
+        txbFim.Size = New Size(48, 21)
+        txbFim.TabIndex = 18
+        ' 
+        ' lblSerieFiltro
+        ' 
+        lblSerieFiltro.AutoSize = True
+        lblSerieFiltro.Location = New Point(195, 14)
+        lblSerieFiltro.Name = "lblSerieFiltro"
+        lblSerieFiltro.Size = New Size(39, 15)
+        lblSerieFiltro.TabIndex = 19
+        lblSerieFiltro.Text = "Série:"
+        ' 
+        ' txbSerie
+        ' 
+        txbSerie.Location = New Point(239, 11)
+        txbSerie.Name = "txbSerie"
+        txbSerie.Size = New Size(45, 21)
+        txbSerie.TabIndex = 20
+        ' 
+        ' GroupBox3
+        ' 
+        GroupBox3.Controls.Add(lblStatusFiltro)
+        GroupBox3.Controls.Add(chkTodos)
+        GroupBox3.Controls.Add(chkEmitidas)
+        GroupBox3.Controls.Add(chkCancelados)
+        GroupBox3.Controls.Add(chkInutilizados)
+        GroupBox3.Location = New Point(203, 95)
+        GroupBox3.Name = "GroupBox3"
+        GroupBox3.Size = New Size(386, 58)
+        GroupBox3.TabIndex = 28
+        GroupBox3.TabStop = False
+        ' 
+        ' lblStatusFiltro
+        ' 
+        lblStatusFiltro.AutoSize = True
+        lblStatusFiltro.Location = New Point(7, 24)
+        lblStatusFiltro.Name = "lblStatusFiltro"
+        lblStatusFiltro.Size = New Size(45, 15)
+        lblStatusFiltro.TabIndex = 21
+        lblStatusFiltro.Text = "Status:"
+        ' 
+        ' chkTodos
+        ' 
+        chkTodos.AutoSize = True
+        chkTodos.Location = New Point(56, 22)
+        chkTodos.Name = "chkTodos"
+        chkTodos.Size = New Size(60, 19)
+        chkTodos.TabIndex = 22
+        chkTodos.Text = "Todos"
+        chkTodos.UseVisualStyleBackColor = True
+        ' 
+        ' chkEmitidas
+        ' 
+        chkEmitidas.AutoSize = True
+        chkEmitidas.Location = New Point(120, 22)
+        chkEmitidas.Name = "chkEmitidas"
+        chkEmitidas.Size = New Size(75, 19)
+        chkEmitidas.TabIndex = 23
+        chkEmitidas.Text = "Emitidos"
+        chkEmitidas.UseVisualStyleBackColor = True
+        ' 
+        ' chkCancelados
+        ' 
+        chkCancelados.AutoSize = True
+        chkCancelados.Location = New Point(199, 22)
+        chkCancelados.Name = "chkCancelados"
+        chkCancelados.Size = New Size(93, 19)
+        chkCancelados.TabIndex = 24
+        chkCancelados.Text = "Cancelados"
+        chkCancelados.UseVisualStyleBackColor = True
+        ' 
+        ' chkInutilizados
+        ' 
+        chkInutilizados.AutoSize = True
+        chkInutilizados.Location = New Point(296, 22)
+        chkInutilizados.Name = "chkInutilizados"
+        chkInutilizados.Size = New Size(88, 19)
+        chkInutilizados.TabIndex = 25
+        chkInutilizados.Text = "Inutilizados"
+        chkInutilizados.UseVisualStyleBackColor = True
+        ' 
+        ' GroupBox2
+        ' 
+        GroupBox2.Controls.Add(lblModelo)
+        GroupBox2.Controls.Add(rbNFCe)
+        GroupBox2.Controls.Add(rbNFe)
+        GroupBox2.Controls.Add(rbAmbos)
+        GroupBox2.Location = New Point(4, 95)
+        GroupBox2.Name = "GroupBox2"
+        GroupBox2.Size = New Size(200, 58)
+        GroupBox2.TabIndex = 27
+        GroupBox2.TabStop = False
+        ' 
+        ' lblModelo
+        ' 
+        lblModelo.AutoSize = True
+        lblModelo.Location = New Point(7, 12)
+        lblModelo.Name = "lblModelo"
+        lblModelo.Size = New Size(50, 15)
+        lblModelo.TabIndex = 11
+        lblModelo.Text = "Modelo:"
+        ' 
+        ' rbNFCe
+        ' 
+        rbNFCe.AutoSize = True
+        rbNFCe.Location = New Point(10, 30)
+        rbNFCe.Name = "rbNFCe"
+        rbNFCe.Size = New Size(61, 19)
+        rbNFCe.TabIndex = 12
+        rbNFCe.TabStop = True
+        rbNFCe.Text = "NFC-e"
+        rbNFCe.UseVisualStyleBackColor = True
+        ' 
+        ' rbNFe
+        ' 
+        rbNFe.AutoSize = True
+        rbNFe.Location = New Point(77, 30)
+        rbNFe.Name = "rbNFe"
+        rbNFe.Size = New Size(52, 19)
+        rbNFe.TabIndex = 13
+        rbNFe.TabStop = True
+        rbNFe.Text = "NF-e"
+        rbNFe.UseVisualStyleBackColor = True
+        ' 
+        ' rbAmbos
+        ' 
+        rbAmbos.AutoSize = True
+        rbAmbos.Location = New Point(129, 30)
+        rbAmbos.Name = "rbAmbos"
+        rbAmbos.Size = New Size(64, 19)
+        rbAmbos.TabIndex = 14
+        rbAmbos.TabStop = True
+        rbAmbos.Text = "Ambos"
+        rbAmbos.UseVisualStyleBackColor = True
+        ' 
+        ' GroupBox1
+        ' 
+        GroupBox1.Controls.Add(lblDirecao)
+        GroupBox1.Controls.Add(rbSaida)
+        GroupBox1.Controls.Add(rbEntrada)
+        GroupBox1.Location = New Point(4, 46)
+        GroupBox1.Name = "GroupBox1"
+        GroupBox1.Size = New Size(200, 38)
+        GroupBox1.TabIndex = 26
+        GroupBox1.TabStop = False
+        ' 
+        ' lblDirecao
+        ' 
+        lblDirecao.AutoSize = True
+        lblDirecao.Location = New Point(2, 12)
+        lblDirecao.Name = "lblDirecao"
+        lblDirecao.Size = New Size(53, 15)
+        lblDirecao.TabIndex = 6
+        lblDirecao.Text = "Direção:"
+        ' 
+        ' rbSaida
+        ' 
+        rbSaida.AutoSize = True
+        rbSaida.Location = New Point(61, 10)
+        rbSaida.Name = "rbSaida"
+        rbSaida.Size = New Size(57, 19)
+        rbSaida.TabIndex = 7
+        rbSaida.TabStop = True
+        rbSaida.Text = "Saída"
+        rbSaida.UseVisualStyleBackColor = True
+        ' 
+        ' rbEntrada
+        ' 
+        rbEntrada.AutoSize = True
+        rbEntrada.Location = New Point(124, 10)
+        rbEntrada.Name = "rbEntrada"
+        rbEntrada.Size = New Size(68, 19)
+        rbEntrada.TabIndex = 8
+        rbEntrada.Text = "Entrada"
+        rbEntrada.UseVisualStyleBackColor = True
+        ' 
         ' lblEmpresaFiltro
         ' 
         lblEmpresaFiltro.AutoSize = True
@@ -232,36 +457,6 @@ Partial Class FrmPrincipal
         dtFim.Size = New Size(92, 21)
         dtFim.TabIndex = 5
         ' 
-        ' lblDirecao
-        ' 
-        lblDirecao.AutoSize = True
-        lblDirecao.Location = New Point(2, 12)
-        lblDirecao.Name = "lblDirecao"
-        lblDirecao.Size = New Size(53, 15)
-        lblDirecao.TabIndex = 6
-        lblDirecao.Text = "Direção:"
-        ' 
-        ' rbSaida
-        ' 
-        rbSaida.AutoSize = True
-        rbSaida.Location = New Point(61, 10)
-        rbSaida.Name = "rbSaida"
-        rbSaida.Size = New Size(57, 19)
-        rbSaida.TabIndex = 7
-        rbSaida.TabStop = True
-        rbSaida.Text = "Saída"
-        rbSaida.UseVisualStyleBackColor = True
-        ' 
-        ' rbEntrada
-        ' 
-        rbEntrada.AutoSize = True
-        rbEntrada.Location = New Point(124, 10)
-        rbEntrada.Name = "rbEntrada"
-        rbEntrada.Size = New Size(68, 19)
-        rbEntrada.TabIndex = 8
-        rbEntrada.Text = "Entrada"
-        rbEntrada.UseVisualStyleBackColor = True
-        ' 
         ' lblFornecedor
         ' 
         lblFornecedor.AutoSize = True
@@ -278,145 +473,6 @@ Partial Class FrmPrincipal
         cboFornecedor.Name = "cboFornecedor"
         cboFornecedor.Size = New Size(300, 23)
         cboFornecedor.TabIndex = 10
-        ' 
-        ' lblModelo
-        ' 
-        lblModelo.AutoSize = True
-        lblModelo.Location = New Point(7, 12)
-        lblModelo.Name = "lblModelo"
-        lblModelo.Size = New Size(50, 15)
-        lblModelo.TabIndex = 11
-        lblModelo.Text = "Modelo:"
-        ' 
-        ' rbNFCe
-        ' 
-        rbNFCe.AutoSize = True
-        rbNFCe.Location = New Point(10, 30)
-        rbNFCe.Name = "rbNFCe"
-        rbNFCe.Size = New Size(61, 19)
-        rbNFCe.TabIndex = 12
-        rbNFCe.TabStop = True
-        rbNFCe.Text = "NFC-e"
-        rbNFCe.UseVisualStyleBackColor = True
-        ' 
-        ' rbNFe
-        ' 
-        rbNFe.AutoSize = True
-        rbNFe.Location = New Point(77, 30)
-        rbNFe.Name = "rbNFe"
-        rbNFe.Size = New Size(52, 19)
-        rbNFe.TabIndex = 13
-        rbNFe.TabStop = True
-        rbNFe.Text = "NF-e"
-        rbNFe.UseVisualStyleBackColor = True
-        ' 
-        ' rbAmbos
-        ' 
-        rbAmbos.AutoSize = True
-        rbAmbos.Location = New Point(129, 30)
-        rbAmbos.Name = "rbAmbos"
-        rbAmbos.Size = New Size(64, 19)
-        rbAmbos.TabIndex = 14
-        rbAmbos.TabStop = True
-        rbAmbos.Text = "Ambos"
-        rbAmbos.UseVisualStyleBackColor = True
-        ' 
-        ' lblNumDoc
-        ' 
-        lblNumDoc.AutoSize = True
-        lblNumDoc.Location = New Point(4, 14)
-        lblNumDoc.Name = "lblNumDoc"
-        lblNumDoc.Size = New Size(51, 15)
-        lblNumDoc.TabIndex = 15
-        lblNumDoc.Text = "Nº Doc.:"
-        ' 
-        ' txbInicio
-        ' 
-        txbInicio.Location = New Point(60, 11)
-        txbInicio.Name = "txbInicio"
-        txbInicio.Size = New Size(48, 21)
-        txbInicio.TabIndex = 16
-        ' 
-        ' lblA2
-        ' 
-        lblA2.AutoSize = True
-        lblA2.Location = New Point(113, 14)
-        lblA2.Name = "lblA2"
-        lblA2.Size = New Size(14, 15)
-        lblA2.TabIndex = 17
-        lblA2.Text = "a"
-        ' 
-        ' txbFim
-        ' 
-        txbFim.Location = New Point(132, 11)
-        txbFim.Name = "txbFim"
-        txbFim.Size = New Size(48, 21)
-        txbFim.TabIndex = 18
-        ' 
-        ' lblSerieFiltro
-        ' 
-        lblSerieFiltro.AutoSize = True
-        lblSerieFiltro.Location = New Point(195, 14)
-        lblSerieFiltro.Name = "lblSerieFiltro"
-        lblSerieFiltro.Size = New Size(39, 15)
-        lblSerieFiltro.TabIndex = 19
-        lblSerieFiltro.Text = "Série:"
-        ' 
-        ' txbSerie
-        ' 
-        txbSerie.Location = New Point(239, 11)
-        txbSerie.Name = "txbSerie"
-        txbSerie.Size = New Size(45, 21)
-        txbSerie.TabIndex = 20
-        ' 
-        ' lblStatusFiltro
-        ' 
-        lblStatusFiltro.AutoSize = True
-        lblStatusFiltro.Location = New Point(7, 24)
-        lblStatusFiltro.Name = "lblStatusFiltro"
-        lblStatusFiltro.Size = New Size(45, 15)
-        lblStatusFiltro.TabIndex = 21
-        lblStatusFiltro.Text = "Status:"
-        ' 
-        ' chkTodos
-        ' 
-        chkTodos.AutoSize = True
-        chkTodos.Location = New Point(56, 22)
-        chkTodos.Name = "chkTodos"
-        chkTodos.Size = New Size(60, 19)
-        chkTodos.TabIndex = 22
-        chkTodos.Text = "Todos"
-        chkTodos.UseVisualStyleBackColor = True
-        ' 
-        ' chkEmitidas
-        ' 
-        chkEmitidas.AutoSize = True
-        chkEmitidas.Location = New Point(120, 22)
-        chkEmitidas.Name = "chkEmitidas"
-        chkEmitidas.Size = New Size(75, 19)
-        chkEmitidas.TabIndex = 23
-        chkEmitidas.Text = "Emitidos"
-        chkEmitidas.UseVisualStyleBackColor = True
-        ' 
-        ' chkCancelados
-        ' 
-        chkCancelados.AutoSize = True
-        chkCancelados.Location = New Point(199, 22)
-        chkCancelados.Name = "chkCancelados"
-        chkCancelados.Size = New Size(93, 19)
-        chkCancelados.TabIndex = 24
-        chkCancelados.Text = "Cancelados"
-        chkCancelados.UseVisualStyleBackColor = True
-        ' 
-        ' chkInutilizados
-        ' 
-        chkInutilizados.AutoSize = True
-        chkInutilizados.Location = New Point(296, 22)
-        chkInutilizados.Name = "chkInutilizados"
-        chkInutilizados.Size = New Size(88, 19)
-        chkInutilizados.TabIndex = 25
-        chkInutilizados.Text = "Inutilizados"
-        chkInutilizados.UseVisualStyleBackColor = True
         ' 
         ' grpAcao
         ' 
@@ -625,16 +681,16 @@ Partial Class FrmPrincipal
         grpConexao.Size = New Size(290, 79)
         grpConexao.TabIndex = 0
         grpConexao.TabStop = False
-        grpConexao.Text = "Conexão"
+        grpConexao.Text = "Bancos de Dados"
         ' 
         ' lbServidor
         ' 
         lbServidor.AutoSize = True
         lbServidor.Location = New Point(10, 25)
         lbServidor.Name = "lbServidor"
-        lbServidor.Size = New Size(55, 15)
+        lbServidor.Size = New Size(60, 15)
         lbServidor.TabIndex = 0
-        lbServidor.Text = "Servidor:"
+        lbServidor.Text = "Banco(s):"
         ' 
         ' lbServ
         ' 
@@ -656,7 +712,7 @@ Partial Class FrmPrincipal
         btnConfigurarServidor.Name = "btnConfigurarServidor"
         btnConfigurarServidor.Size = New Size(190, 26)
         btnConfigurarServidor.TabIndex = 2
-        btnConfigurarServidor.Text = "Configurar Servidor"
+        btnConfigurarServidor.Text = "Configurar Bancos"
         btnConfigurarServidor.UseVisualStyleBackColor = False
         ' 
         ' grpEmail
@@ -707,12 +763,16 @@ Partial Class FrmPrincipal
         grpAgendamento.Controls.Add(lblHoraAgendamento)
         grpAgendamento.Controls.Add(dtpHoraAgendamento)
         grpAgendamento.Controls.Add(chkIniciarComWindows)
+        grpAgendamento.Controls.Add(chkManterSempreAtivo)
+        grpAgendamento.Controls.Add(chkDiaFixo)
+        grpAgendamento.Controls.Add(lblDiaPersonalizado)
+        grpAgendamento.Controls.Add(nudDiaAgendamento)
         grpAgendamento.Controls.Add(lblEmailAlerta)
         grpAgendamento.Controls.Add(txtEmailAlertaFalha)
         grpAgendamento.Controls.Add(btnTestarAgendamento)
         grpAgendamento.Location = New Point(8, 136)
         grpAgendamento.Name = "grpAgendamento"
-        grpAgendamento.Size = New Size(600, 140)
+        grpAgendamento.Size = New Size(600, 170)
         grpAgendamento.TabIndex = 2
         grpAgendamento.TabStop = False
         grpAgendamento.Text = "Agendamento Automático"
@@ -722,9 +782,9 @@ Partial Class FrmPrincipal
         chkAgendamentoAtivo.AutoSize = True
         chkAgendamentoAtivo.Location = New Point(10, 25)
         chkAgendamentoAtivo.Name = "chkAgendamentoAtivo"
-        chkAgendamentoAtivo.Size = New Size(409, 19)
+        chkAgendamentoAtivo.Size = New Size(369, 19)
         chkAgendamentoAtivo.TabIndex = 0
-        chkAgendamentoAtivo.Text = "Habilitar agendamento mensal (dia 01, competência do mês anterior)"
+        chkAgendamentoAtivo.Text = "Habilitar agendamento mensal (competência do mês anterior)"
         chkAgendamentoAtivo.UseVisualStyleBackColor = True
         ' 
         ' lblHoraAgendamento
@@ -755,10 +815,51 @@ Partial Class FrmPrincipal
         chkIniciarComWindows.Text = "Iniciar com o Windows"
         chkIniciarComWindows.UseVisualStyleBackColor = True
         ' 
+        ' chkManterSempreAtivo
+        ' 
+        chkManterSempreAtivo.AutoSize = True
+        chkManterSempreAtivo.Location = New Point(310, 58)
+        chkManterSempreAtivo.Name = "chkManterSempreAtivo"
+        chkManterSempreAtivo.Size = New Size(185, 19)
+        chkManterSempreAtivo.TabIndex = 7
+        chkManterSempreAtivo.Text = "Manter sempre em execução"
+        chkManterSempreAtivo.UseVisualStyleBackColor = True
+        ' 
+        ' chkDiaFixo
+        ' 
+        chkDiaFixo.AutoSize = True
+        chkDiaFixo.Checked = True
+        chkDiaFixo.CheckState = CheckState.Checked
+        chkDiaFixo.Location = New Point(10, 85)
+        chkDiaFixo.Name = "chkDiaFixo"
+        chkDiaFixo.Size = New Size(90, 19)
+        chkDiaFixo.TabIndex = 8
+        chkDiaFixo.Text = "Todo dia 01"
+        chkDiaFixo.UseVisualStyleBackColor = True
+        ' 
+        ' lblDiaPersonalizado
+        ' 
+        lblDiaPersonalizado.AutoSize = True
+        lblDiaPersonalizado.Location = New Point(129, 87)
+        lblDiaPersonalizado.Name = "lblDiaPersonalizado"
+        lblDiaPersonalizado.Size = New Size(110, 15)
+        lblDiaPersonalizado.TabIndex = 9
+        lblDiaPersonalizado.Text = "Dia personalizado:"
+        ' 
+        ' nudDiaAgendamento
+        ' 
+        nudDiaAgendamento.Location = New Point(245, 85)
+        nudDiaAgendamento.Maximum = New Decimal(New Integer() {31, 0, 0, 0})
+        nudDiaAgendamento.Minimum = New Decimal(New Integer() {1, 0, 0, 0})
+        nudDiaAgendamento.Name = "nudDiaAgendamento"
+        nudDiaAgendamento.Size = New Size(50, 21)
+        nudDiaAgendamento.TabIndex = 10
+        nudDiaAgendamento.Value = New Decimal(New Integer() {1, 0, 0, 0})
+        ' 
         ' lblEmailAlerta
         ' 
         lblEmailAlerta.AutoSize = True
-        lblEmailAlerta.Location = New Point(10, 90)
+        lblEmailAlerta.Location = New Point(10, 120)
         lblEmailAlerta.Name = "lblEmailAlerta"
         lblEmailAlerta.Size = New Size(155, 15)
         lblEmailAlerta.TabIndex = 4
@@ -766,7 +867,7 @@ Partial Class FrmPrincipal
         ' 
         ' txtEmailAlertaFalha
         ' 
-        txtEmailAlertaFalha.Location = New Point(175, 87)
+        txtEmailAlertaFalha.Location = New Point(175, 117)
         txtEmailAlertaFalha.Name = "txtEmailAlertaFalha"
         txtEmailAlertaFalha.Size = New Size(230, 21)
         txtEmailAlertaFalha.TabIndex = 5
@@ -774,39 +875,51 @@ Partial Class FrmPrincipal
         ' btnTestarAgendamento
         ' 
         btnTestarAgendamento.Font = New Font("Arial", 9F, FontStyle.Bold, GraphicsUnit.Point, CByte(0))
-        btnTestarAgendamento.Location = New Point(415, 85)
+        btnTestarAgendamento.Location = New Point(415, 115)
         btnTestarAgendamento.Name = "btnTestarAgendamento"
         btnTestarAgendamento.Size = New Size(120, 26)
         btnTestarAgendamento.TabIndex = 6
         btnTestarAgendamento.Text = "Testar agora"
         btnTestarAgendamento.UseVisualStyleBackColor = True
-        '
+        ' 
         ' lblVersao
-        '
+        ' 
         lblVersao.AutoSize = True
+        lblVersao.Font = New Font("Arial", 9F, FontStyle.Bold, GraphicsUnit.Point, CByte(0))
         lblVersao.Location = New Point(12, 709)
         lblVersao.Name = "lblVersao"
-        lblVersao.Size = New Size(75, 15)
+        lblVersao.Size = New Size(67, 15)
         lblVersao.TabIndex = 30
         lblVersao.Text = "Versão 1.0"
-        '
+        ' 
         ' btnVerificarAtualizacao
-        '
+        ' 
         btnVerificarAtualizacao.Location = New Point(492, 705)
         btnVerificarAtualizacao.Name = "btnVerificarAtualizacao"
         btnVerificarAtualizacao.Size = New Size(140, 22)
         btnVerificarAtualizacao.TabIndex = 31
         btnVerificarAtualizacao.Text = "Verificar Atualizações"
         btnVerificarAtualizacao.UseVisualStyleBackColor = True
-        '
+        ' 
+        ' btnAjuda
+        ' 
+        btnAjuda.Font = New Font("Arial", 9F, FontStyle.Bold, GraphicsUnit.Point, CByte(0))
+        btnAjuda.ForeColor = SystemColors.HotTrack
+        btnAjuda.Location = New Point(382, 705)
+        btnAjuda.Name = "btnAjuda"
+        btnAjuda.Size = New Size(100, 22)
+        btnAjuda.TabIndex = 32
+        btnAjuda.Text = "Ajuda (F1)"
+        btnAjuda.UseVisualStyleBackColor = True
+        ' 
         ' tmrAtualizacao
-        '
-        tmrAtualizacao.Interval = 14400000
-        '
+        ' 
+        tmrAtualizacao.Interval = 1800000
+        ' 
         ' tmrAgendamento
-        '
+        ' 
         tmrAgendamento.Interval = 3600000
-        '
+        ' 
         ' notifyIcon1
         ' 
         notifyIcon1.ContextMenuStrip = contextMenuTray
@@ -832,56 +945,6 @@ Partial Class FrmPrincipal
         SairToolStripMenuItem.Size = New Size(100, 22)
         SairToolStripMenuItem.Text = "Sair"
         ' 
-        ' GroupBox1
-        ' 
-        GroupBox1.Controls.Add(lblDirecao)
-        GroupBox1.Controls.Add(rbSaida)
-        GroupBox1.Controls.Add(rbEntrada)
-        GroupBox1.Location = New Point(4, 46)
-        GroupBox1.Name = "GroupBox1"
-        GroupBox1.Size = New Size(200, 38)
-        GroupBox1.TabIndex = 26
-        GroupBox1.TabStop = False
-        ' 
-        ' GroupBox2
-        ' 
-        GroupBox2.Controls.Add(lblModelo)
-        GroupBox2.Controls.Add(rbNFCe)
-        GroupBox2.Controls.Add(rbNFe)
-        GroupBox2.Controls.Add(rbAmbos)
-        GroupBox2.Location = New Point(4, 95)
-        GroupBox2.Name = "GroupBox2"
-        GroupBox2.Size = New Size(200, 58)
-        GroupBox2.TabIndex = 27
-        GroupBox2.TabStop = False
-        ' 
-        ' GroupBox3
-        ' 
-        GroupBox3.Controls.Add(lblStatusFiltro)
-        GroupBox3.Controls.Add(chkTodos)
-        GroupBox3.Controls.Add(chkEmitidas)
-        GroupBox3.Controls.Add(chkCancelados)
-        GroupBox3.Controls.Add(chkInutilizados)
-        GroupBox3.Location = New Point(203, 95)
-        GroupBox3.Name = "GroupBox3"
-        GroupBox3.Size = New Size(386, 58)
-        GroupBox3.TabIndex = 28
-        GroupBox3.TabStop = False
-        ' 
-        ' GroupBox4
-        ' 
-        GroupBox4.Controls.Add(lblNumDoc)
-        GroupBox4.Controls.Add(txbInicio)
-        GroupBox4.Controls.Add(lblA2)
-        GroupBox4.Controls.Add(txbFim)
-        GroupBox4.Controls.Add(lblSerieFiltro)
-        GroupBox4.Controls.Add(txbSerie)
-        GroupBox4.Location = New Point(4, 161)
-        GroupBox4.Name = "GroupBox4"
-        GroupBox4.Size = New Size(299, 40)
-        GroupBox4.TabIndex = 29
-        GroupBox4.TabStop = False
-        ' 
         ' FrmPrincipal
         ' 
         AutoScaleDimensions = New SizeF(7F, 15F)
@@ -889,10 +952,12 @@ Partial Class FrmPrincipal
         BackColor = SystemColors.Control
         ClientSize = New Size(640, 731)
         Controls.Add(btnVerificarAtualizacao)
+        Controls.Add(btnAjuda)
         Controls.Add(lblVersao)
         Controls.Add(tabPrincipal)
         Font = New Font("Arial", 9F, FontStyle.Regular, GraphicsUnit.Point, CByte(0))
         Icon = CType(resources.GetObject("$this.Icon"), Icon)
+        KeyPreview = True
         Name = "FrmPrincipal"
         StartPosition = FormStartPosition.CenterScreen
         Text = "Exportador de XML"
@@ -901,6 +966,14 @@ Partial Class FrmPrincipal
         tabExportar.PerformLayout()
         grpFiltros.ResumeLayout(False)
         grpFiltros.PerformLayout()
+        GroupBox4.ResumeLayout(False)
+        GroupBox4.PerformLayout()
+        GroupBox3.ResumeLayout(False)
+        GroupBox3.PerformLayout()
+        GroupBox2.ResumeLayout(False)
+        GroupBox2.PerformLayout()
+        GroupBox1.ResumeLayout(False)
+        GroupBox1.PerformLayout()
         grpAcao.ResumeLayout(False)
         grpAcao.PerformLayout()
         CType(dgvCupons, ComponentModel.ISupportInitialize).EndInit()
@@ -911,16 +984,10 @@ Partial Class FrmPrincipal
         grpEmail.PerformLayout()
         grpAgendamento.ResumeLayout(False)
         grpAgendamento.PerformLayout()
+        CType(nudDiaAgendamento, ComponentModel.ISupportInitialize).EndInit()
         contextMenuTray.ResumeLayout(False)
-        GroupBox1.ResumeLayout(False)
-        GroupBox1.PerformLayout()
-        GroupBox2.ResumeLayout(False)
-        GroupBox2.PerformLayout()
-        GroupBox3.ResumeLayout(False)
-        GroupBox3.PerformLayout()
-        GroupBox4.ResumeLayout(False)
-        GroupBox4.PerformLayout()
         ResumeLayout(False)
+        PerformLayout()
     End Sub
 
     Friend WithEvents tabPrincipal As TabControl
@@ -985,12 +1052,17 @@ Partial Class FrmPrincipal
     Friend WithEvents lblHoraAgendamento As Label
     Friend WithEvents dtpHoraAgendamento As DateTimePicker
     Friend WithEvents chkIniciarComWindows As CheckBox
+    Friend WithEvents chkManterSempreAtivo As CheckBox
+    Friend WithEvents chkDiaFixo As CheckBox
+    Friend WithEvents lblDiaPersonalizado As Label
+    Friend WithEvents nudDiaAgendamento As NumericUpDown
     Friend WithEvents lblEmailAlerta As Label
     Friend WithEvents txtEmailAlertaFalha As TextBox
     Friend WithEvents btnTestarAgendamento As Button
     Friend WithEvents FolderBrowserDialog1 As FolderBrowserDialog
     Friend WithEvents lblVersao As Label
     Friend WithEvents btnVerificarAtualizacao As Button
+    Friend WithEvents btnAjuda As Button
     Friend WithEvents tmrAtualizacao As Timer
     Friend WithEvents tmrAgendamento As Timer
     Friend WithEvents notifyIcon1 As NotifyIcon

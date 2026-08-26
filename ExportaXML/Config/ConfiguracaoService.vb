@@ -49,8 +49,43 @@ Public Class ConfiguracaoService
 
         Dim json As String = File.ReadAllText(Caminho)
 
-        Return JsonSerializer.Deserialize(Of Configuracoes)(json)
+        Dim config = JsonSerializer.Deserialize(Of Configuracoes)(json)
+        MigrarConexaoUnica(config)
+
+        Return config
 
     End Function
+
+    ''' <summary>
+    ''' Upgrade transparente de um config.json de antes do suporte a múltiplos
+    ''' bancos: se <see cref="Configuracoes.Conexoes"/> ainda estiver vazia mas
+    ''' os campos legados de conexão única tiverem algo preenchido, cria uma
+    ''' única <see cref="ConexaoBanco"/> ("Padrão") a partir deles. Não grava
+    ''' nada em disco aqui — só preenche o objeto em memória; a próxima
+    ''' chamada a <see cref="Salvar"/> (por qualquer tela) já persiste no
+    ''' formato novo.
+    ''' </summary>
+    Private Shared Sub MigrarConexaoUnica(config As Configuracoes)
+        If config.Conexoes Is Nothing Then
+            config.Conexoes = New List(Of ConexaoBanco)
+        End If
+
+        If config.Conexoes.Count > 0 Then Exit Sub
+
+        Dim temConexaoLegada =
+            Not String.IsNullOrWhiteSpace(config.Servidor) OrElse
+            Not String.IsNullOrWhiteSpace(config.Usuario)
+
+        If Not temConexaoLegada Then Exit Sub
+
+        config.Conexoes.Add(New ConexaoBanco With {
+            .Nome = "Padrão",
+            .Servidor = config.Servidor,
+            .Porta = config.Porta,
+            .Banco = config.Banco,
+            .Usuario = config.Usuario,
+            .Senha = config.Senha
+        })
+    End Sub
 
 End Class

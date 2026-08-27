@@ -9,7 +9,11 @@ Public Class FrmEmail
     ''' <summary>Preenche os campos com o que já está salvo em config.json.</summary>
     Private Sub FrmEmail_Load(sender As Object, e As EventArgs) Handles MyBase.Load
 
-        lblAlerta.Text = "A configuração deve " & vbCrLf & "ser feita com o" & vbCrLf & "servidor do GMAIL!"
+        ' Não é exclusivo do Gmail — EmailService.Enviar aceita qualquer
+        ' servidor SMTP (Outlook/Office365, webmail de domínio próprio,
+        ' etc.). Use "Testar Envio" pra validar antes de salvar.
+        lblAlerta.ForeColor = SystemColors.ControlText
+        lblAlerta.Text = "Informe o SMTP do" & vbCrLf & "provedor de e-mail" & vbCrLf & "do cliente."
 
         Dim cfg = ConfiguracaoService.Carregar()
 

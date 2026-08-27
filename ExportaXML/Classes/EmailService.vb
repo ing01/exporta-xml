@@ -25,9 +25,13 @@ Public Class EmailService
     ''' o e-mail é enviado sem anexo (não gera erro).
     ''' </param>
     ''' <param name="usarSSL">
-    ''' Recebido por compatibilidade com quem chama, mas atualmente NÃO é usado:
-    ''' a conexão sempre usa <see cref="SecureSocketOptions.Auto"/>, que já decide
-    ''' sozinha se usa SSL/STARTTLS de acordo com a porta.
+    ''' True (padrão/recomendado pra praticamente qualquer provedor — Gmail,
+    ''' Outlook/Office365, webmail de domínio próprio): usa
+    ''' <see cref="SecureSocketOptions.Auto"/>, que decide sozinha entre
+    ''' SSL/STARTTLS de acordo com a porta. False: conexão sem nenhuma
+    ''' criptografia (<see cref="SecureSocketOptions.None"/>) — só pra algum
+    ''' servidor interno/legado que não suporte TLS de jeito nenhum; não
+    ''' desmarque pra provedores comuns.
     ''' </param>
     ''' <remarks>
     ''' ATENÇÃO: <c>ServerCertificateValidationCallback</c> está fixado para aceitar
@@ -77,10 +81,12 @@ Public Class EmailService
             smtp.ServerCertificateValidationCallback =
         Function(sender, certificate, chain, errors) True
 
+            Dim opcaoSeguranca = If(usarSSL, SecureSocketOptions.Auto, SecureSocketOptions.None)
+
             smtp.Connect(
         servidor,
         porta,
-        SecureSocketOptions.Auto)
+        opcaoSeguranca)
 
             smtp.Authenticate(usuario, senha)
 

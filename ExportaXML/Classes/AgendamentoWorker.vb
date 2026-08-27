@@ -9,7 +9,14 @@ Imports Microsoft.Extensions.Hosting
 Public Class AgendamentoWorker
     Inherits BackgroundService
 
-    Private Shared ReadOnly IntervaloChecagem As TimeSpan = TimeSpan.FromHours(1)
+    ''' <summary>
+    ''' Curto de propósito — o custo de checar (só ler config.json e comparar
+    ''' datas) é desprezível, e mantém o atraso máximo entre "chegou a hora
+    ''' configurada" e "executou de fato" baixo mesmo sem ninguém reiniciar o
+    ''' serviço depois de reconfigurar (ver mesmo raciocínio em
+    ''' FrmPrincipal.tmrAgendamento).
+    ''' </summary>
+    Private Shared ReadOnly IntervaloChecagem As TimeSpan = TimeSpan.FromMinutes(1)
 
     Protected Overrides Async Function ExecuteAsync(stoppingToken As Threading.CancellationToken) As Threading.Tasks.Task
         Do While Not stoppingToken.IsCancellationRequested

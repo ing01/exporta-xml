@@ -3,20 +3,31 @@ Imports System.Text.Json
 
 ''' <summary>
 ''' Persiste as configurações do aplicativo (conexão, e-mail, agendamento,
-''' últimas escolhas do usuário) num arquivo "config.json" simples ao lado do
-''' executável — não usa banco de dados nem registro do Windows.
+''' últimas escolhas do usuário) num arquivo "config.json" simples — não usa
+''' banco de dados nem registro do Windows.
 ''' </summary>
 ''' <remarks>
-''' ATENÇÃO: "config.json" fica em <see cref="Application.StartupPath"/>, ou seja,
-''' na pasta da versão instalada pelo Velopack. Diferente dos logs (que foram
-''' movidos para %LocalAppData% justamente por isso), esse arquivo SOBREVIVE a
-''' atualizações porque o instalador do Velopack não apaga arquivos que não
-''' fazem parte do pacote publicado — mas se algum dia a estratégia de update
-''' mudar para "pasta limpa a cada versão", isso precisa ser revisto.
+''' ATENÇÃO: "config.json" fica em %ProgramData%\ExportaXML\, um local FIXO,
+''' independente de qual cópia do executável está rodando — mesmo raciocínio
+''' de <see cref="LogService.PastaLogs"/>. Isso é essencial porque o app
+''' interativo (rodando de "current\", atualizado pelo Velopack) e o Windows
+''' Service (rodando de uma cópia própria em "Servico\", ver
+''' <see cref="ServicoWindowsService"/>) são processos diferentes, em pastas
+''' diferentes — se o config.json ficasse "ao lado do executável"
+''' (<see cref="Application.StartupPath"/>, como era antes), cada um leria um
+''' arquivo diferente, e o serviço NUNCA veria o que foi configurado pela
+''' tela (bug real, já aconteceu). <see cref="MigrarConfigAntiga"/> resgata
+''' automaticamente um config.json de uma versão anterior a essa mudança.
 ''' </remarks>
 Public Class ConfiguracaoService
 
     Private Shared ReadOnly Caminho As String =
+        Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData),
+            "ExportaXML", "config.json")
+
+    ''' <summary>Local antigo (ao lado do executável) — só usado por <see cref="MigrarConfigAntiga"/>.</summary>
+    Private Shared ReadOnly CaminhoAntigo As String =
         Path.Combine(Application.StartupPath, "config.json")
 
     ''' <summary>
@@ -25,6 +36,11 @@ Public Class ConfiguracaoService
     ''' campos alterados por outra parte do código entre o load e o save.
     ''' </summary>
     Public Shared Sub Salvar(config As Configuracoes)
+
+        Dim pasta As String = Path.GetDirectoryName(Caminho)
+        If Not Directory.Exists(pasta) Then
+            Directory.CreateDirectory(pasta)
+        End If
 
         Dim json As String =
             JsonSerializer.Serialize(config,
@@ -43,6 +59,8 @@ Public Class ConfiguracaoService
     ''' </summary>
     Public Shared Function Carregar() As Configuracoes
 
+        MigrarConfigAntiga()
+
         If Not File.Exists(Caminho) Then
             Return New Configuracoes()
         End If
@@ -55,6 +73,29 @@ Public Class ConfiguracaoService
         Return config
 
     End Function
+
+    ''' <summary>
+    ''' Se o config.json novo (%ProgramData%) ainda não existir, mas houver um
+    ''' antigo (ao lado do executável de ONDE ESTE PROCESSO está rodando),
+    ''' copia pra cá — resgata a configuração já feita ao atualizar de uma
+    ''' versão anterior a essa mudança. Melhor esforço: qualquer falha aqui
+    ''' (permissão, etc.) simplesmente deixa <see cref="Carregar"/> seguir
+    ''' pro caminho normal (config nova, em branco).
+    ''' </summary>
+    Private Shared Sub MigrarConfigAntiga()
+        If File.Exists(Caminho) Then Return
+        If Not File.Exists(CaminhoAntigo) Then Return
+
+        Try
+            Dim pasta As String = Path.GetDirectoryName(Caminho)
+            If Not Directory.Exists(pasta) Then
+                Directory.CreateDirectory(pasta)
+            End If
+
+            File.Copy(CaminhoAntigo, Caminho)
+        Catch
+        End Try
+    End Sub
 
     ''' <summary>
     ''' Upgrade transparente de um config.json de antes do suporte a múltiplos

@@ -884,6 +884,8 @@ Public Class FrmPrincipal
         Dim cfg = ConfiguracaoService.Carregar()
         cfg.AgendamentoAtivo = chkAgendamentoAtivo.Checked
         ConfiguracaoService.Salvar(cfg)
+
+        VerificarEExecutarAgendamento()
     End Sub
 
     ''' <summary>Grava o horário configurado do agendamento (hora e minuto separados) em config.json.</summary>
@@ -894,6 +896,8 @@ Public Class FrmPrincipal
         cfg.HoraAgendamento = dtpHoraAgendamento.Value.Hour
         cfg.MinutoAgendamento = dtpHoraAgendamento.Value.Minute
         ConfiguracaoService.Salvar(cfg)
+
+        VerificarEExecutarAgendamento()
     End Sub
 
     ''' <summary>
@@ -913,6 +917,8 @@ Public Class FrmPrincipal
         Dim cfg = ConfiguracaoService.Carregar()
         cfg.DiaAgendamento = CInt(nudDiaAgendamento.Value)
         ConfiguracaoService.Salvar(cfg)
+
+        VerificarEExecutarAgendamento()
     End Sub
 
     ''' <summary>Grava o dia personalizado do agendamento em config.json (só relevante quando "Todo dia 01" está desmarcado).</summary>
@@ -922,6 +928,8 @@ Public Class FrmPrincipal
         Dim cfg = ConfiguracaoService.Carregar()
         cfg.DiaAgendamento = CInt(nudDiaAgendamento.Value)
         ConfiguracaoService.Salvar(cfg)
+
+        VerificarEExecutarAgendamento()
     End Sub
 
     ''' <summary>Grava o e-mail de alerta de falha do agendamento quando o campo perde o foco.</summary>
@@ -1044,8 +1052,11 @@ Public Class FrmPrincipal
     End Sub
 
     ''' <summary>
-    ''' Dispara a cada 1h (Interval configurado no Designer): reavalia se é
-    ''' hora de rodar o agendamento mensal.
+    ''' Dispara a cada 1min (Interval configurado no Designer): reavalia se é
+    ''' hora de rodar o agendamento mensal. Intervalo curto de propósito — o
+    ''' custo de checar (só ler config.json e comparar datas) é desprezível, e
+    ''' mantém o atraso máximo entre "chegou a hora" e "executou de fato"
+    ''' baixo mesmo se ninguém mexer na tela depois de configurar.
     ''' </summary>
     Private Sub tmrAgendamento_Tick(sender As Object, e As EventArgs) Handles tmrAgendamento.Tick
         VerificarEExecutarAgendamento()
@@ -1054,16 +1065,18 @@ Public Class FrmPrincipal
     ''' <summary>
     ''' Verifica, sem interromper o uso normal do programa, se está na hora de
     ''' rodar o agendamento mensal (<see cref="AgendamentoService.DeveExecutar"/>);
-    ''' se estiver, executa. Chamado também uma vez no <see cref="FrmPrincipal_Shown"/>,
-    ''' pra pegar o caso de o programa ter sido aberto depois do horário
-    ''' configurado (não precisa esperar o próximo tick do timer).
+    ''' se estiver, executa. Chamado no <see cref="FrmPrincipal_Shown"/>, no
+    ''' timer de 1min, e também logo depois de qualquer alteração nos campos
+    ''' de agendamento (ativo/horário/dia) — assim, se as condições já
+    ''' estiverem satisfeitas no momento em que a configuração é salva, roda
+    ''' na hora, sem esperar o próximo tick.
     ''' </summary>
     ''' <remarks>
     ''' A checagem em si (<see cref="AgendamentoService.DeveExecutar"/>) é só
     ''' data/config, rápida — mas se ela disser "sim, é agora", a execução de
     ''' verdade (<see cref="ExecutarAgendamento"/>) é jogada pra
     ''' <see cref="Task.Run"/>, porque ela exporta e envia e-mail de verdade e
-    ''' não pode travar a tela (nem o timer de 1h que também chama isto).
+    ''' não pode travar a tela (nem o timer que também chama isto).
     ''' </remarks>
     Private Sub VerificarEExecutarAgendamento()
         Try

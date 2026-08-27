@@ -917,8 +917,8 @@ Partial Class FrmPrincipal
         tmrAtualizacao.Interval = 1800000
         ' 
         ' tmrAgendamento
-        ' 
-        tmrAgendamento.Interval = 3600000
+        '
+        tmrAgendamento.Interval = 60000
         ' 
         ' notifyIcon1
         ' 

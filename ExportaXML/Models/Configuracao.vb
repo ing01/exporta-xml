@@ -14,6 +14,9 @@ Public Class Configuracoes
     ''' Populado a partir de <see cref="Servidor"/>/<see cref="Porta"/>/etc. na
     ''' migração de um config.json antigo — ver <see cref="ConfiguracaoService.Carregar"/>.
     ''' </summary>
+    ''' 
+    Public Property OrigemConfiguracao As String = "Manual"  ' "Manual" ou "Banco"
+    Public Property CodEmpresaSincronizada As Integer = 0
     Public Property Conexoes As List(Of ConexaoBanco)
 
     ''' <summary>
@@ -34,6 +37,8 @@ Public Class Configuracoes
     Public Property SenhaSMTP As String
     Public Property EmailRemetente As String
     Public Property UsarSSL As Boolean
+    ' Chave usada para descriptografar valores no banco que foram cifrados com OpenSSL (Salted__...).
+    Public Property ChaveCriptografia As String
 
     ''' <summary>
     ''' Valores padrão usados quando o config.json ainda não existe (primeira
@@ -56,6 +61,8 @@ Public Class Configuracoes
         SenhaSMTP = String.Empty
         EmailRemetente = String.Empty
         UsarSSL = True
+        ChaveCriptografia = String.Empty
+        DestinatariosLocais = New List(Of DestinatarioLocal)()
 
         AgendamentoAtivo = False
         HoraAgendamento = 8
@@ -68,6 +75,7 @@ Public Class Configuracoes
     ' --- Últimas escolhas do usuário na tela principal, para reabrir do jeito que deixou ---
     Public Property UltimaEmpresa As Integer
     Public Property UltimoDestinatario As String
+    Public Property DestinatariosLocais As List(Of DestinatarioLocal)
 
     ''' <summary>
     ''' OBSOLETO / não usado mais: o destino de exportação hoje é sempre calculado

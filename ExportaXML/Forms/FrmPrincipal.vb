@@ -39,7 +39,6 @@ Public Class FrmPrincipal
 
         Dim cfg = ConfiguracaoService.Carregar()
 
-        txtDestinatario.Text = cfg.UltimoDestinatario
 
         chkAgendamentoAtivo.Checked = cfg.AgendamentoAtivo
         dtpHoraAgendamento.Value = Date.Today.Add(New TimeSpan(cfg.HoraAgendamento, cfg.MinutoAgendamento, 0))
@@ -490,19 +489,43 @@ Public Class FrmPrincipal
                 Atenciosamente,
                 {nomeEmpresaEmail}"
 
+                ' Determina destinatário: se exportação por empresa (não Global), tentar obter do banco
+                Dim destinatarioFinal As String = String.Empty
+                If empresaSelecionada.Codigo <> 0 Then
+                    Dim cfgApp = ConfiguracaoService.Carregar()
+                    If cfgApp.Conexoes.Count > 0 Then
+                        Using conn = Conexao.Abrir(cfgApp.Conexoes(0).Servidor, cfgApp.Conexoes(0).Porta,
+                                                   cfgApp.Conexoes(0).Banco, cfgApp.Conexoes(0).Usuario,
+                                                   cfgApp.Conexoes(0).Senha)
+                            Try
+                                Dim dest = DestinatarioService.ObterPadrao(conn, empresaSelecionada.Codigo)
+                                If Not String.IsNullOrWhiteSpace(dest) Then
+                                    destinatarioFinal = dest.Trim()
+                                End If
+                            Catch
+                            End Try
+                        End Using
+                    End If
+                End If
+                ' Se não encontrou destinatário por empresa, fallback para cfg.UltimoDestinatario
+                If String.IsNullOrWhiteSpace(destinatarioFinal) Then
+                    Dim cfgBackup = ConfiguracaoService.Carregar()
+                    destinatarioFinal = cfgBackup.UltimoDestinatario.Trim()
+                End If
+
                 EmailService.Enviar(
                     cfgEmail.ServidorSMTP,
                     cfgEmail.PortaSMTP,
                     cfgEmail.UsuarioSMTP,
                     cfgEmail.SenhaSMTP,
                     cfgEmail.EmailRemetente.Trim(),
-                    txtDestinatario.Text.Trim(),
+                    destinatarioFinal,
                     "XMLs Exportados - " & nomeEmpresaEmail & " - " & competencia,
                     mensagem,
                     txtDestino.Text,
                     cfgEmail.UsarSSL)
 
-                LogService.RegistrarAtividade($"Exportar: e-mail enviado para ""{txtDestinatario.Text.Trim()}""")
+                LogService.RegistrarAtividade($"Exportar: e-mail enviado para ""{destinatarioFinal}""")
                 MessageBox.Show("E-mail enviado com sucesso!", "Sucesso", MessageBoxButtons.OK, MessageBoxIcon.Information)
             End If
 
@@ -619,6 +642,8 @@ Public Class FrmPrincipal
         Dim resultado = Await Task.Run(Function() ListarEmpresasDeTodosOsBancos(cfg))
         Dim todasEmpresas = resultado.Empresas
         Dim errosConexao = resultado.Erros
+        Dim codificacoes = resultado.Codificacoes
+        Dim msgCodificacao As String = ""
 
         cboEmpresa.DataSource = todasEmpresas
         cboEmpresa.DisplayMember = If(cfg.Conexoes.Count > 1, "NomeExibicao", "Nome")
@@ -628,6 +653,10 @@ Public Class FrmPrincipal
 
         cboEmpresa.Enabled = True
         Await CarregarFornecedoresDaConexaoAsync(TryCast(cboEmpresa.SelectedItem, EmpresaItem)?.Conexao)
+
+        If codificacoes.Count > 0 Then
+            msgCodificacao = " | Codificações: " & String.Join(", ", codificacoes.Select(Function(kvp) $"{kvp.Key}={kvp.Value}"))
+        End If
 
         If errosConexao.Count > 0 Then
             lblStatus.Text = $"Conectado, mas com erro em: {String.Join("; ", errosConexao)}"
@@ -641,13 +670,17 @@ Public Class FrmPrincipal
     ''' de propósito, NÃO toca em nenhum controle da tela, pra poder ser
     ''' chamada de dentro de <see cref="Task.Run"/> com segurança.
     ''' </summary>
-    Private Function ListarEmpresasDeTodosOsBancos(cfg As Configuracoes) As (Empresas As List(Of EmpresaItem), Erros As List(Of String))
+    Private Function ListarEmpresasDeTodosOsBancos(cfg As Configuracoes) As (Empresas As List(Of EmpresaItem), Erros As List(Of String), Codificacoes As Dictionary(Of String, String))
         Dim todasEmpresas As New List(Of EmpresaItem)
         Dim errosConexao As New List(Of String)
+        Dim codificacoes As New Dictionary(Of String, String)   ' <-- NOVO
 
         For Each banco As ConexaoBanco In cfg.Conexoes
             Try
-                Using conn = Conexao.Abrir(banco.Servidor, banco.Porta, banco.Banco, banco.Usuario, banco.Senha)
+                Dim codificacao As String = ""   ' <-- NOVO: variável para receber a codificação
+                Using conn = Conexao.Abrir(banco.Servidor, banco.Porta, banco.Banco, banco.Usuario, banco.Senha, codificacao)   ' <-- ADICIONADO o parâmetro codificacao
+                    codificacoes(banco.Nome) = codificacao   ' <-- NOVO: guarda a codificação no dicionário
+
                     For Each empresa As EmpresaItem In EmpresaService.Listar(conn).Where(Function(emp) emp.Codigo <> 0)
                         empresa.Conexao = banco
                         todasEmpresas.Add(empresa)
@@ -659,7 +692,7 @@ Public Class FrmPrincipal
         Next
 
         todasEmpresas.Insert(0, New EmpresaItem With {.Codigo = 0, .Nome = "Todas as empresas"})
-        Return (todasEmpresas, errosConexao)
+        Return (todasEmpresas, errosConexao, codificacoes)   ' <-- ALTERADO para incluir o dicionário
     End Function
 
     ''' <summary>
@@ -736,6 +769,16 @@ Public Class FrmPrincipal
         AtualizarConfiguracoes()
     End Sub
 
+    Private Sub btnMapearDestinatarios_Click(sender As Object, e As EventArgs) Handles btnMapearDestinatarios.Click
+        Dim frm As New FrmDestinatarios
+        frm.ShowDialog()
+    End Sub
+
+    Private Sub btnRestaurarVersao_Click(sender As Object, e As EventArgs) Handles btnRestaurarVersao.Click
+        Dim frm As New FrmRestore()
+        frm.ShowDialog()
+    End Sub
+
     '=========================
     ' EVENTOS
     '=========================
@@ -759,14 +802,6 @@ Public Class FrmPrincipal
         Await CarregarFornecedoresDaConexaoAsync(empresaSelecionada.Conexao)
     End Sub
 
-    ''' <summary>Grava o destinatário de e-mail em config.json quando o campo perde o foco.</summary>
-    Private Sub txtDestinatario_Leave(sender As Object, e As EventArgs) Handles txtDestinatario.Leave
-        If carregando Then Exit Sub
-
-        Dim cfg = ConfiguracaoService.Carregar()
-        cfg.UltimoDestinatario = txtDestinatario.Text.Trim()
-        ConfiguracaoService.Salvar(cfg)
-    End Sub
 
     ''' <summary>Lembra "NFC-e" como último modelo escolhido. Um handler igual existe para cada radio do grupo Modelo.</summary>
     Private Sub rbNFCe_CheckedChanged(sender As Object, e As EventArgs) Handles rbNFCe.CheckedChanged
@@ -1333,21 +1368,5 @@ Public Class FrmPrincipal
         End If
     End Sub
 
-    ''' <summary>
-    ''' Stub vazio gerado pelo Designer do Visual Studio (duplo clique num
-    ''' controle) — não tem "Handles", não está ligado a nenhum evento real, e
-    ''' o controle "PictureBox1" nem existe mais na tela. Seguro remover numa
-    ''' limpeza futura.
-    ''' </summary>
-    Private Sub PictureBox1_Click(sender As Object, e As EventArgs)
 
-    End Sub
-
-    ''' <summary>
-    ''' Stub vazio gerado pelo Designer (duplo clique no label Fornecedor) —
-    ''' não faz nada. Seguro remover numa limpeza futura.
-    ''' </summary>
-    Private Sub lblFornecedor_Click(sender As Object, e As EventArgs) Handles lblFornecedor.Click
-
-    End Sub
 End Class

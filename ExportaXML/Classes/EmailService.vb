@@ -81,12 +81,27 @@ Public Class EmailService
             smtp.ServerCertificateValidationCallback =
         Function(sender, certificate, chain, errors) True
 
-            Dim opcaoSeguranca = If(usarSSL, SecureSocketOptions.Auto, SecureSocketOptions.None)
+            ' Escolhe a opção de segurança explicitamente por porta — evita ambiguidade com provedores que exigem SslOnConnect (465) ou StartTls (587).
+            Dim opcaoSeguranca As SecureSocketOptions
+            If porta = 465 Then
+                opcaoSeguranca = SecureSocketOptions.SslOnConnect
+            ElseIf porta = 587 Then
+                opcaoSeguranca = SecureSocketOptions.StartTls
+            Else
+                opcaoSeguranca = If(usarSSL, SecureSocketOptions.Auto, SecureSocketOptions.None)
+            End If
 
             smtp.Connect(
         servidor,
         porta,
         opcaoSeguranca)
+
+            ' Alguns servidores anunciam mecanismos de autenticação (ex: XOAUTH2) que não aplicam quando usamos usuário/senha.
+            ' Removemos XOAUTH2 para forçar mecanismos tradicionais (PLAIN/LOGIN) e evitar falhas em servidores mal configurados.
+            Try
+                smtp.AuthenticationMechanisms.Remove("XOAUTH2")
+            Catch
+            End Try
 
             smtp.Authenticate(usuario, senha)
 

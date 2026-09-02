@@ -70,6 +70,26 @@ Public Class ConfiguracaoService
         Dim config = JsonSerializer.Deserialize(Of Configuracoes)(json)
         MigrarConexaoUnica(config)
 
+        ' Migração: se havia um destinatário legado em UltimoDestinatario, converte para DestinatariosLocais (Global) para não perder o valor após atualização
+        If config.DestinatariosLocais Is Nothing Then
+            config.DestinatariosLocais = New List(Of DestinatarioLocal)()
+        End If
+
+        If (config.DestinatariosLocais.Count = 0) AndAlso Not String.IsNullOrWhiteSpace(config.UltimoDestinatario) Then
+            Try
+                config.DestinatariosLocais.Add(New DestinatarioLocal With {
+                    .CodigoEmpresa = 0,
+                    .Email = config.UltimoDestinatario.Trim(),
+                    .Descricao = "Migrado do campo destinatário antigo",
+                    .Ativo = True
+                })
+                ' Salva a migração imediatamente para que a UI passe a mostrar esta entrada
+                Salvar(config)
+            Catch
+                ' Silencioso: se falhar a gravação, ainda retornamos o objeto em memória
+            End Try
+        End If
+
         Return config
 
     End Function

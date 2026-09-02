@@ -83,8 +83,7 @@ Partial Class FrmPrincipal
         lbServ = New Label()
         btnConfigurarServidor = New Button()
         grpEmail = New GroupBox()
-        Label10 = New Label()
-        txtDestinatario = New TextBox()
+        Label2 = New Label()
         btnConfigurarEmail = New Button()
         grpAgendamento = New GroupBox()
         chkAgendamentoAtivo = New CheckBox()
@@ -98,6 +97,8 @@ Partial Class FrmPrincipal
         lblEmailAlerta = New Label()
         txtEmailAlertaFalha = New TextBox()
         btnTestarAgendamento = New Button()
+        btnRestaurarVersao = New Button()
+        Label10 = New Label()
         FolderBrowserDialog1 = New FolderBrowserDialog()
         lblVersao = New Label()
         btnVerificarAtualizacao = New Button()
@@ -156,7 +157,7 @@ Partial Class FrmPrincipal
         ' Label1
         ' 
         Label1.AutoSize = True
-        Label1.Font = New Font("Arial", 11F, FontStyle.Bold, GraphicsUnit.Point, CByte(0))
+        Label1.Font = New Font("Arial", 11.0F, FontStyle.Bold, GraphicsUnit.Point, CByte(0))
         Label1.Location = New Point(101, 367)
         Label1.Name = "Label1"
         Label1.Size = New Size(86, 18)
@@ -508,7 +509,7 @@ Partial Class FrmPrincipal
         ' 
         btnDestino.BackColor = Color.Gold
         btnDestino.FlatStyle = FlatStyle.Flat
-        btnDestino.Font = New Font("Arial", 9F, FontStyle.Bold, GraphicsUnit.Point, CByte(0))
+        btnDestino.Font = New Font("Arial", 9.0F, FontStyle.Bold, GraphicsUnit.Point, CByte(0))
         btnDestino.ForeColor = Color.Black
         btnDestino.Location = New Point(438, 13)
         btnDestino.Name = "btnDestino"
@@ -519,7 +520,7 @@ Partial Class FrmPrincipal
         ' 
         ' btnPesquisar
         ' 
-        btnPesquisar.Font = New Font("Arial", 9F, FontStyle.Bold, GraphicsUnit.Point, CByte(0))
+        btnPesquisar.Font = New Font("Arial", 9.0F, FontStyle.Bold, GraphicsUnit.Point, CByte(0))
         btnPesquisar.Location = New Point(11, 41)
         btnPesquisar.Name = "btnPesquisar"
         btnPesquisar.Size = New Size(180, 32)
@@ -530,7 +531,7 @@ Partial Class FrmPrincipal
         ' lblQtd
         ' 
         lblQtd.AutoSize = True
-        lblQtd.Font = New Font("Arial", 11F, FontStyle.Bold, GraphicsUnit.Point, CByte(0))
+        lblQtd.Font = New Font("Arial", 11.0F, FontStyle.Bold, GraphicsUnit.Point, CByte(0))
         lblQtd.Location = New Point(197, 48)
         lblQtd.Name = "lblQtd"
         lblQtd.Size = New Size(55, 18)
@@ -540,7 +541,7 @@ Partial Class FrmPrincipal
         ' lblStatus
         ' 
         lblStatus.AutoSize = True
-        lblStatus.Font = New Font("Arial", 11F, FontStyle.Bold, GraphicsUnit.Point, CByte(0))
+        lblStatus.Font = New Font("Arial", 11.0F, FontStyle.Bold, GraphicsUnit.Point, CByte(0))
         lblStatus.Location = New Point(193, 388)
         lblStatus.Name = "lblStatus"
         lblStatus.Size = New Size(53, 18)
@@ -550,7 +551,7 @@ Partial Class FrmPrincipal
         ' lblQuantidade
         ' 
         lblQuantidade.AutoSize = True
-        lblQuantidade.Font = New Font("Arial", 11F, FontStyle.Bold, GraphicsUnit.Point, CByte(0))
+        lblQuantidade.Font = New Font("Arial", 11.0F, FontStyle.Bold, GraphicsUnit.Point, CByte(0))
         lblQuantidade.Location = New Point(444, 367)
         lblQuantidade.Name = "lblQuantidade"
         lblQuantidade.Size = New Size(55, 18)
@@ -568,7 +569,7 @@ Partial Class FrmPrincipal
         ' 
         btnExportar.BackColor = Color.ForestGreen
         btnExportar.FlatStyle = FlatStyle.Flat
-        btnExportar.Font = New Font("Arial", 13F, FontStyle.Bold, GraphicsUnit.Point, CByte(0))
+        btnExportar.Font = New Font("Arial", 13.0F, FontStyle.Bold, GraphicsUnit.Point, CByte(0))
         btnExportar.ForeColor = Color.Honeydew
         btnExportar.Location = New Point(193, 315)
         btnExportar.Name = "btnExportar"
@@ -660,8 +661,12 @@ Partial Class FrmPrincipal
         ' tabConfiguracoes
         ' 
         tabConfiguracoes.Controls.Add(grpConexao)
+        tabConfiguracoes.Controls.Add(lblVersao)
+        tabConfiguracoes.Controls.Add(btnVerificarAtualizacao)
         tabConfiguracoes.Controls.Add(grpEmail)
+        tabConfiguracoes.Controls.Add(btnAjuda)
         tabConfiguracoes.Controls.Add(grpAgendamento)
+        tabConfiguracoes.Controls.Add(btnRestaurarVersao)
         tabConfiguracoes.Location = New Point(4, 24)
         tabConfiguracoes.Name = "tabConfiguracoes"
         tabConfiguracoes.Padding = New Padding(3)
@@ -706,7 +711,7 @@ Partial Class FrmPrincipal
         btnConfigurarServidor.BackColor = SystemColors.HotTrack
         btnConfigurarServidor.Cursor = Cursors.Hand
         btnConfigurarServidor.FlatStyle = FlatStyle.Flat
-        btnConfigurarServidor.Font = New Font("Arial", 9F, FontStyle.Bold, GraphicsUnit.Point, CByte(0))
+        btnConfigurarServidor.Font = New Font("Arial", 9.0F, FontStyle.Bold, GraphicsUnit.Point, CByte(0))
         btnConfigurarServidor.ForeColor = SystemColors.GradientActiveCaption
         btnConfigurarServidor.Location = New Point(10, 45)
         btnConfigurarServidor.Name = "btnConfigurarServidor"
@@ -717,42 +722,34 @@ Partial Class FrmPrincipal
         ' 
         ' grpEmail
         ' 
-        grpEmail.Controls.Add(Label10)
-        grpEmail.Controls.Add(txtDestinatario)
+        grpEmail.Controls.Add(Label2)
         grpEmail.Controls.Add(btnConfigurarEmail)
         grpEmail.ForeColor = Color.FromArgb(CByte(51), CByte(51), CByte(51))
         grpEmail.Location = New Point(306, 8)
         grpEmail.Name = "grpEmail"
-        grpEmail.Size = New Size(302, 120)
+        grpEmail.Size = New Size(302, 79)
         grpEmail.TabIndex = 1
         grpEmail.TabStop = False
         grpEmail.Text = "E-mail"
         ' 
-        ' Label10
+        ' Label2
         ' 
-        Label10.AutoSize = True
-        Label10.Location = New Point(10, 25)
-        Label10.Name = "Label10"
-        Label10.Size = New Size(77, 15)
-        Label10.TabIndex = 0
-        Label10.Text = "Destinatário:"
-        ' 
-        ' txtDestinatario
-        ' 
-        txtDestinatario.Location = New Point(10, 45)
-        txtDestinatario.Name = "txtDestinatario"
-        txtDestinatario.Size = New Size(280, 21)
-        txtDestinatario.TabIndex = 1
+        Label2.AutoSize = True
+        Label2.Location = New Point(6, 27)
+        Label2.Name = "Label2"
+        Label2.Size = New Size(247, 15)
+        Label2.TabIndex = 3
+        Label2.Text = "Configure os e-mails para envio automático"
         ' 
         ' btnConfigurarEmail
         ' 
         btnConfigurarEmail.BackColor = SystemColors.HotTrack
         btnConfigurarEmail.FlatStyle = FlatStyle.Flat
-        btnConfigurarEmail.Font = New Font("Arial", 9F, FontStyle.Bold, GraphicsUnit.Point, CByte(0))
+        btnConfigurarEmail.Font = New Font("Arial", 9.0F, FontStyle.Bold, GraphicsUnit.Point, CByte(0))
         btnConfigurarEmail.ForeColor = SystemColors.GradientActiveCaption
-        btnConfigurarEmail.Location = New Point(10, 75)
+        btnConfigurarEmail.Location = New Point(10, 45)
         btnConfigurarEmail.Name = "btnConfigurarEmail"
-        btnConfigurarEmail.Size = New Size(190, 26)
+        btnConfigurarEmail.Size = New Size(199, 26)
         btnConfigurarEmail.TabIndex = 2
         btnConfigurarEmail.Text = "Configurar E-mail"
         btnConfigurarEmail.UseVisualStyleBackColor = False
@@ -770,7 +767,7 @@ Partial Class FrmPrincipal
         grpAgendamento.Controls.Add(lblEmailAlerta)
         grpAgendamento.Controls.Add(txtEmailAlertaFalha)
         grpAgendamento.Controls.Add(btnTestarAgendamento)
-        grpAgendamento.Location = New Point(8, 136)
+        grpAgendamento.Location = New Point(6, 93)
         grpAgendamento.Name = "grpAgendamento"
         grpAgendamento.Size = New Size(600, 170)
         grpAgendamento.TabIndex = 2
@@ -874,7 +871,7 @@ Partial Class FrmPrincipal
         ' 
         ' btnTestarAgendamento
         ' 
-        btnTestarAgendamento.Font = New Font("Arial", 9F, FontStyle.Bold, GraphicsUnit.Point, CByte(0))
+        btnTestarAgendamento.Font = New Font("Arial", 9.0F, FontStyle.Bold, GraphicsUnit.Point, CByte(0))
         btnTestarAgendamento.Location = New Point(415, 115)
         btnTestarAgendamento.Name = "btnTestarAgendamento"
         btnTestarAgendamento.Size = New Size(120, 26)
@@ -882,11 +879,30 @@ Partial Class FrmPrincipal
         btnTestarAgendamento.Text = "Testar agora"
         btnTestarAgendamento.UseVisualStyleBackColor = True
         ' 
+        ' btnRestaurarVersao
+        ' 
+        btnRestaurarVersao.BackColor = SystemColors.Control
+        btnRestaurarVersao.Font = New Font("Arial", 9.0F, FontStyle.Bold, GraphicsUnit.Point, CByte(0))
+        btnRestaurarVersao.ForeColor = Color.DarkRed
+        btnRestaurarVersao.Location = New Point(8, 269)
+        btnRestaurarVersao.Name = "btnRestaurarVersao"
+        btnRestaurarVersao.Size = New Size(181, 26)
+        btnRestaurarVersao.TabIndex = 4
+        btnRestaurarVersao.Text = "Restaurar Versão Anterior"
+        btnRestaurarVersao.UseVisualStyleBackColor = True
+        ' 
+        ' Label10
+        ' 
+        Label10.Location = New Point(0, 0)
+        Label10.Name = "Label10"
+        Label10.Size = New Size(100, 23)
+        Label10.TabIndex = 0
+        ' 
         ' lblVersao
         ' 
         lblVersao.AutoSize = True
-        lblVersao.Font = New Font("Arial", 9F, FontStyle.Bold, GraphicsUnit.Point, CByte(0))
-        lblVersao.Location = New Point(12, 709)
+        lblVersao.Font = New Font("Arial", 9.0F, FontStyle.Bold, GraphicsUnit.Point, CByte(0))
+        lblVersao.Location = New Point(539, 324)
         lblVersao.Name = "lblVersao"
         lblVersao.Size = New Size(67, 15)
         lblVersao.TabIndex = 30
@@ -894,7 +910,7 @@ Partial Class FrmPrincipal
         ' 
         ' btnVerificarAtualizacao
         ' 
-        btnVerificarAtualizacao.Location = New Point(492, 705)
+        btnVerificarAtualizacao.Location = New Point(466, 271)
         btnVerificarAtualizacao.Name = "btnVerificarAtualizacao"
         btnVerificarAtualizacao.Size = New Size(140, 22)
         btnVerificarAtualizacao.TabIndex = 31
@@ -903,9 +919,9 @@ Partial Class FrmPrincipal
         ' 
         ' btnAjuda
         ' 
-        btnAjuda.Font = New Font("Arial", 9F, FontStyle.Bold, GraphicsUnit.Point, CByte(0))
+        btnAjuda.Font = New Font("Arial", 9.0F, FontStyle.Bold, GraphicsUnit.Point, CByte(0))
         btnAjuda.ForeColor = SystemColors.HotTrack
-        btnAjuda.Location = New Point(382, 705)
+        btnAjuda.Location = New Point(506, 299)
         btnAjuda.Name = "btnAjuda"
         btnAjuda.Size = New Size(100, 22)
         btnAjuda.TabIndex = 32
@@ -917,7 +933,7 @@ Partial Class FrmPrincipal
         tmrAtualizacao.Interval = 1800000
         ' 
         ' tmrAgendamento
-        '
+        ' 
         tmrAgendamento.Interval = 60000
         ' 
         ' notifyIcon1
@@ -947,15 +963,12 @@ Partial Class FrmPrincipal
         ' 
         ' FrmPrincipal
         ' 
-        AutoScaleDimensions = New SizeF(7F, 15F)
+        AutoScaleDimensions = New SizeF(7.0F, 15.0F)
         AutoScaleMode = AutoScaleMode.Font
         BackColor = SystemColors.Control
-        ClientSize = New Size(640, 731)
-        Controls.Add(btnVerificarAtualizacao)
-        Controls.Add(btnAjuda)
-        Controls.Add(lblVersao)
+        ClientSize = New Size(640, 709)
         Controls.Add(tabPrincipal)
-        Font = New Font("Arial", 9F, FontStyle.Regular, GraphicsUnit.Point, CByte(0))
+        Font = New Font("Arial", 9.0F, FontStyle.Regular, GraphicsUnit.Point, CByte(0))
         Icon = CType(resources.GetObject("$this.Icon"), Icon)
         KeyPreview = True
         Name = "FrmPrincipal"
@@ -978,6 +991,7 @@ Partial Class FrmPrincipal
         grpAcao.PerformLayout()
         CType(dgvCupons, ComponentModel.ISupportInitialize).EndInit()
         tabConfiguracoes.ResumeLayout(False)
+        tabConfiguracoes.PerformLayout()
         grpConexao.ResumeLayout(False)
         grpConexao.PerformLayout()
         grpEmail.ResumeLayout(False)
@@ -987,7 +1001,6 @@ Partial Class FrmPrincipal
         CType(nudDiaAgendamento, ComponentModel.ISupportInitialize).EndInit()
         contextMenuTray.ResumeLayout(False)
         ResumeLayout(False)
-        PerformLayout()
     End Sub
 
     Friend WithEvents tabPrincipal As TabControl
@@ -1045,8 +1058,9 @@ Partial Class FrmPrincipal
     Friend WithEvents btnConfigurarServidor As Button
     Friend WithEvents grpEmail As GroupBox
     Friend WithEvents Label10 As Label
-    Friend WithEvents txtDestinatario As TextBox
     Friend WithEvents btnConfigurarEmail As Button
+    Friend WithEvents btnMapearDestinatarios As Button
+    Friend WithEvents btnRestaurarVersao As Button
     Friend WithEvents grpAgendamento As GroupBox
     Friend WithEvents chkAgendamentoAtivo As CheckBox
     Friend WithEvents lblHoraAgendamento As Label
@@ -1074,5 +1088,6 @@ Partial Class FrmPrincipal
     Friend WithEvents GroupBox4 As GroupBox
     Friend WithEvents GroupBox3 As GroupBox
     Friend WithEvents GroupBox2 As GroupBox
+    Friend WithEvents Label2 As Label
 
 End Class

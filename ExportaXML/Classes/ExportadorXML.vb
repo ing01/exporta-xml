@@ -1,55 +1,43 @@
-﻿Imports Npgsql
-Imports System.IO
+﻿Imports System.IO
 Imports System.IO.Compression
+Imports System.Text
+Imports Npgsql
 
-''' <summary>
-''' Núcleo de toda a exportação/consulta de XMLs de saída (NFC-e e NFe) e,
-''' mais recentemente, também a consulta de notas de entrada (compra). O
-''' conteúdo do XML de saída já vem gravado como texto direto no banco
-''' (colunas tipo <c>arq_xml</c>/<c>xml_autorizado</c>); exportar é só ler essa
-''' coluna e escrever num .zip — bem diferente da entrada, cujo XML só existe
-''' como caminho de arquivo local (ver <see cref="BuscarCompras"/>).
-''' </summary>
 Public Class ExportadorXML
 
-    ''' <summary>
-    ''' Exporta para um .zip os XMLs de NFC-e (cupons fiscais) de uma empresa
-    ''' num período, aplicando os filtros informados.
-    ''' </summary>
-    ''' <param name="conn">Conexão já aberta.</param>
-    ''' <param name="cod_empresa">Código da empresa, ou 0 para não filtrar por empresa.</param>
-    ''' <param name="dataInicial">Primeiro dia do período (inclusive).</param>
-    ''' <param name="dataFinal">Último dia do período (inclusive — internamente vira "&lt; dataFinal+1 dia").</param>
-    ''' <param name="caminhoZip">
-    ''' Caminho do .zip de destino. Se já existir, os XMLs são adicionados a ele
-    ''' (modo Update); se não existir, é criado.
-    ''' </param>
-    ''' <param name="incluirEmitidos">Inclui cupons emitidos normalmente (nem cancelados, nem inutilizados).</param>
-    ''' <param name="incluirCancelados">Inclui cupons cancelados.</param>
-    ''' <param name="incluirInutilizados">Inclui faixas de numeração inutilizadas.</param>
-    ''' <param name="cupomInicial">Filtro opcional: número do COO inicial (inclusive). Nothing = sem limite inferior.</param>
-    ''' <param name="cupomFinal">Filtro opcional: número do COO final (inclusive). Nothing = sem limite superior.</param>
-    ''' <param name="serie">Filtro opcional de série do SAT/NFC-e. Vazio = não filtra por série.</param>
-    ''' <param name="atualizarProgresso">
-    ''' Callback opcional chamado a cada cupom processado, com (quantidadeProcessadaAteAgora, 0)
-    ''' — o segundo parâmetro é sempre 0 aqui; quem quiser o total real deve calculá-lo antes (ver <see cref="ContarXMLs"/>).
-    ''' </param>
-    ''' <remarks>
-    ''' Os parâmetros de cupom são passados como texto (via cast <c>::integer</c>
-    ''' no SQL) porque o Postgres não consegue inferir sozinho o tipo de um
-    ''' parâmetro usado só num "IS NULL OR ..." sem esse cast explícito — sem
-    ''' ele, a consulta falha com erro 42P08 sempre que o filtro estiver vazio.
-    ''' Cada linha do resultado vira um arquivo dentro do zip, nomeado pela
-    ''' chave de acesso, com sufixo <c>_cancelado</c>/<c>_inutilizacao</c> quando aplicável.
-    ''' Para inutilizados especificamente, o XML pode estar em uma de duas
-    ''' colunas dependendo de quando o cupom foi inutilizado: cupons antigos
-    ''' gravam em <c>xml_gerado</c> (comportamento anterior do PDV), cupons mais
-    ''' novos gravam em <c>xml_inutilizacao_nfce</c> (comportamento corrigido). A
-    ''' consulta usa <c>COALESCE(NULLIF(xml_inutilizacao_nfce, ''), xml_gerado)</c>
-    ''' pra pegar o que estiver preenchido, sem precisar saber de antemão qual
-    ''' coluna vale pra cada cupom. Isso só se aplica ao caso inutilizado —
-    ''' emitidos e cancelados continuam vindo de <c>xml_autorizado</c>/<c>xml_cancelado</c>, inalterados.
-    ''' </remarks>
+    Private Shared Function Base64ParaBytesXml(valor As Object) As Byte()
+
+        If valor Is Nothing OrElse valor Is DBNull.Value Then
+            Return Array.Empty(Of Byte)()
+        End If
+
+        Dim texto As String = valor.ToString()
+
+        If String.IsNullOrWhiteSpace(texto) Then
+            Return Array.Empty(Of Byte)()
+        End If
+
+        texto = texto.Trim()
+
+        ' Primeiro tenta tratar como Base64
+        Try
+            Return Convert.FromBase64String(texto)
+        Catch
+            ' Se não for Base64, trata como XML puro
+            Return Encoding.UTF8.GetBytes(texto)
+        End Try
+
+    End Function
+
+    Private Shared Function XmlParaBytes(valor As Object) As Byte()
+
+        If valor Is Nothing OrElse valor Is DBNull.Value Then
+            Return Array.Empty(Of Byte)()
+        End If
+
+        Return DirectCast(valor, Byte())
+
+    End Function
     Public Shared Sub ExportarNFCe(
         conn As NpgsqlConnection,
         cod_empresa As Integer,
@@ -65,20 +53,24 @@ Public Class ExportadorXML
         Optional atualizarProgresso As Action(Of Integer, Integer) = Nothing)
 
         Dim sql As String =
-            "SELECT
-                chave_cfe,
-                xml_autorizado,
-                xml_cancelado,
-                COALESCE(NULLIF(xml_inutilizacao_nfce, ''), xml_gerado) AS xml_inutilizado,
-                cancelado,
-                inutilizada
-             FROM cupons
-             WHERE dt_impressao >= @inicio
-               AND dt_impressao < @fim
-               AND (@cupomInicial::integer IS NULL OR coo >= @cupomInicial::integer)
-               AND (@cupomFinal::integer IS NULL OR coo <= @cupomFinal::integer)"
+    "SELECT
+        chave_cfe,
+        encode(textsend(xml_autorizado), 'base64') AS xml_autorizado,
+        encode(textsend(xml_cancelado), 'base64') AS xml_cancelado,
+        encode(
+            textsend(
+                COALESCE(NULLIF(xml_inutilizacao_nfce, ''), xml_gerado)
+            ),
+            'base64'
+        ) AS xml_inutilizado,
+        cancelado,
+        inutilizada
+     FROM cupons
+     WHERE dt_impressao >= @inicio
+       AND dt_impressao < @fim
+       AND (@cupomInicial::integer IS NULL OR coo >= @cupomInicial::integer)
+       AND (@cupomFinal::integer IS NULL OR coo <= @cupomFinal::integer)"
 
-        ' SÓ FILTRA POR SÉRIE SE FOR INFORMADA
         If Not String.IsNullOrWhiteSpace(serie) Then
             sql &= " AND CAST(serie_nfce AS VARCHAR) = @serie"
         End If
@@ -89,19 +81,15 @@ Public Class ExportadorXML
 
         If Not (incluirEmitidos And incluirCancelados And incluirInutilizados) Then
             Dim filtros As New List(Of String)
-
             If incluirEmitidos Then
                 filtros.Add("(COALESCE(cancelado,'') <> 'S' AND COALESCE(inutilizada,'') <> 'S')")
             End If
-
             If incluirCancelados Then
                 filtros.Add("cancelado='S'")
             End If
-
             If incluirInutilizados Then
                 filtros.Add("TRIM(COALESCE(inutilizada,''))='S'")
             End If
-
             sql &= " AND (" & String.Join(" OR ", filtros) & ")"
         End If
 
@@ -110,20 +98,11 @@ Public Class ExportadorXML
         Using cmd As New NpgsqlCommand(sql, conn)
             cmd.Parameters.AddWithValue("@inicio", dataInicial.Date)
             cmd.Parameters.AddWithValue("@fim", dataFinal.Date.AddDays(1))
-
             If cod_empresa <> 0 Then
                 cmd.Parameters.AddWithValue("@empresa", cod_empresa)
             End If
-
-            cmd.Parameters.AddWithValue(
-                "@cupomInicial",
-                If(cupomInicial.HasValue, CType(cupomInicial.Value, Object), DBNull.Value))
-
-            cmd.Parameters.AddWithValue(
-                "@cupomFinal",
-                If(cupomFinal.HasValue, CType(cupomFinal.Value, Object), DBNull.Value))
-
-            ' SÓ ADICIONA O PARÂMETRO SÉRIE SE FOR INFORMADA
+            cmd.Parameters.AddWithValue("@cupomInicial", If(cupomInicial.HasValue, CType(cupomInicial.Value, Object), DBNull.Value))
+            cmd.Parameters.AddWithValue("@cupomFinal", If(cupomFinal.HasValue, CType(cupomFinal.Value, Object), DBNull.Value))
             If Not String.IsNullOrWhiteSpace(serie) Then
                 cmd.Parameters.AddWithValue("@serie", serie.Trim())
             End If
@@ -135,15 +114,18 @@ Public Class ExportadorXML
                     While reader.Read()
                         processados += 1
                         Dim chave = reader("chave_cfe").ToString()
-                        Dim cancelado = reader("cancelado").ToString.Trim.ToUpper()
-                        Dim inutilizada = reader("inutilizada").ToString.Trim.ToUpper()
+                        Dim cancelado = reader("cancelado").ToString().Trim().ToUpper()
+                        Dim inutilizada = reader("inutilizada").ToString().Trim().ToUpper()
 
                         If inutilizada = "S" Then
-                            ExportarXml(zip, chave & "_inutilizacao.xml", reader("xml_inutilizado"))
+                            Dim bytes As Byte() = Base64ParaBytesXml(reader("xml_inutilizado"))
+                            ExportarXml(zip, chave & "_inutilizacao.xml", bytes)
                         ElseIf cancelado = "S" Then
-                            ExportarXml(zip, chave & "_cancelado.xml", reader("xml_cancelado"))
+                            Dim bytes As Byte() = Base64ParaBytesXml(reader("xml_cancelado"))
+                            ExportarXml(zip, chave & "_cancelado.xml", bytes)
                         Else
-                            ExportarXml(zip, chave & ".xml", reader("xml_autorizado"))
+                            Dim bytes As Byte() = Base64ParaBytesXml(reader("xml_autorizado"))
+                            ExportarXml(zip, chave & ".xml", bytes)
                         End If
 
                         atualizarProgresso?.Invoke(processados, 0)
@@ -153,33 +135,6 @@ Public Class ExportadorXML
         End Using
     End Sub
 
-    ''' <summary>
-    ''' Exporta para um .zip os XMLs de NFe (nota fiscal eletrônica de venda)
-    ''' de uma empresa num período, aplicando os filtros informados.
-    ''' </summary>
-    ''' <param name="conn">Conexão já aberta.</param>
-    ''' <param name="cod_empresa">Código da empresa, ou 0 para não filtrar por empresa.</param>
-    ''' <param name="dataInicial">Primeiro dia do período (inclusive).</param>
-    ''' <param name="dataFinal">Último dia do período (inclusive).</param>
-    ''' <param name="caminhoZip">Caminho do .zip de destino (criado ou atualizado).</param>
-    ''' <param name="incluirEmitidos">Inclui notas emitidas (não canceladas).</param>
-    ''' <param name="incluirCancelados">Inclui notas canceladas.</param>
-    ''' <param name="modelo">
-    ''' Recebido por simetria com <see cref="BuscarCupons"/>/<see cref="ContarXMLs"/>,
-    ''' mas NÃO é usado dentro deste método — NFe aqui sempre significa modelo 55.
-    ''' </param>
-    ''' <param name="cupomInicial">Filtro opcional: número da nota inicial (inclusive).</param>
-    ''' <param name="cupomFinal">Filtro opcional: número da nota final (inclusive).</param>
-    ''' <param name="serie">Filtro opcional de série da NFe. Vazio = não filtra por série.</param>
-    ''' <param name="atualizarProgresso">Callback opcional chamado a cada nota processada.</param>
-    ''' <remarks>
-    ''' Linhas sem <c>arq_xml</c> preenchido são silenciosamente puladas (o
-    ''' registro de venda existe, mas nunca teve XML gerado/importado — não é
-    ''' erro). Diferente de <c>incluirEmitidos</c>/<c>incluirCancelados</c> de
-    ''' NFC-e (que usa uma lista de filtros OR), aqui é um simples Xor: se as
-    ''' duas flags forem iguais (ambas true ou ambas false), nenhum filtro de
-    ''' status é aplicado e tudo é incluído.
-    ''' </remarks>
     Public Shared Sub ExportarNFe(
         conn As NpgsqlConnection,
         cod_empresa As Integer,
@@ -195,18 +150,17 @@ Public Class ExportadorXML
         Optional atualizarProgresso As Action(Of Integer, Integer) = Nothing)
 
         Dim sql As String =
-            "SELECT
-                num_nota,
-                arq_xml,
-                nfe_protocan,
-                cod_empresa
-             FROM vendas
-             WHERE dt_emissao >= @inicio
-               AND dt_emissao < @fim
-               AND (@cupomInicial::integer IS NULL OR num_nota >= @cupomInicial::integer)
-               AND (@cupomFinal::integer IS NULL OR num_nota <= @cupomFinal::integer)"
+    "SELECT
+        num_nota,
+        textsend(arq_xml) AS arq_xml,
+        nfe_protocan,
+        cod_empresa
+     FROM vendas
+     WHERE dt_emissao >= @inicio
+       AND dt_emissao < @fim
+       AND (@cupomInicial::integer IS NULL OR num_nota >= @cupomInicial::integer)
+       AND (@cupomFinal::integer IS NULL OR num_nota <= @cupomFinal::integer)"
 
-        ' SÓ FILTRA POR SÉRIE SE FOR INFORMADA
         If Not String.IsNullOrWhiteSpace(serie) Then
             sql &= " AND serie = @serie"
         End If
@@ -215,7 +169,6 @@ Public Class ExportadorXML
             sql &= " AND cod_empresa = @empresa"
         End If
 
-        'Emitidas / Canceladas
         If incluirEmitidos Xor incluirCancelados Then
             If incluirEmitidos Then
                 sql &= " AND COALESCE(nfe_protocan,'') = ''"
@@ -229,20 +182,11 @@ Public Class ExportadorXML
         Using cmd As New NpgsqlCommand(sql, conn)
             cmd.Parameters.AddWithValue("@inicio", dataInicial.Date)
             cmd.Parameters.AddWithValue("@fim", dataFinal.Date.AddDays(1))
-
             If cod_empresa <> 0 Then
                 cmd.Parameters.AddWithValue("@empresa", cod_empresa)
             End If
-
-            cmd.Parameters.AddWithValue(
-                "@cupomInicial",
-                If(cupomInicial.HasValue, CType(cupomInicial.Value, Object), DBNull.Value))
-
-            cmd.Parameters.AddWithValue(
-                "@cupomFinal",
-                If(cupomFinal.HasValue, CType(cupomFinal.Value, Object), DBNull.Value))
-
-            ' SÓ ADICIONA O PARÂMETRO SÉRIE SE FOR INFORMADA
+            cmd.Parameters.AddWithValue("@cupomInicial", If(cupomInicial.HasValue, CType(cupomInicial.Value, Object), DBNull.Value))
+            cmd.Parameters.AddWithValue("@cupomFinal", If(cupomFinal.HasValue, CType(cupomFinal.Value, Object), DBNull.Value))
             If Not String.IsNullOrWhiteSpace(serie) Then
                 cmd.Parameters.AddWithValue("@serie", serie.Trim())
             End If
@@ -260,15 +204,11 @@ Public Class ExportadorXML
 
                         Dim numero As String = reader("num_nota").ToString()
                         Dim cancelada As Boolean = Not String.IsNullOrWhiteSpace(reader("nfe_protocan").ToString())
-                        Dim nomeArquivo As String
+                        Dim nomeArquivo As String = If(cancelada, numero & "_cancelada.xml", numero & ".xml")
 
-                        If cancelada Then
-                            nomeArquivo = numero & "_cancelada.xml"
-                        Else
-                            nomeArquivo = numero & ".xml"
-                        End If
+                        Dim bytes As Byte() = XmlParaBytes(reader("arq_xml"))
+                        ExportarXml(zip, nomeArquivo, bytes)
 
-                        ExportarXml(zip, nomeArquivo, reader("arq_xml"))
                         atualizarProgresso?.Invoke(processados, 0)
                     End While
                 End Using
@@ -276,87 +216,29 @@ Public Class ExportadorXML
         End Using
     End Sub
 
-    ''' <summary>
-    ''' Sanitiza um texto (normalmente o nome de uma empresa) para poder ser
-    ''' usado como nome de arquivo no Windows, trocando cada caractere inválido
-    ''' (barra, dois-pontos, etc.) por "_". Nothing vira string vazia.
-    ''' </summary>
-    ''' <param name="nome">Texto de entrada; pode ser Nothing.</param>
-    ''' <returns>O texto sanitizado e sem espaços nas pontas (Trim).</returns>
     Public Shared Function NomeArquivoValido(nome As String) As String
         Dim resultado As String = If(nome, "")
-
         For Each caractere In Path.GetInvalidFileNameChars()
             resultado = resultado.Replace(caractere, "_"c)
         Next
-
         Return resultado.Trim()
     End Function
 
-    ''' <summary>
-    ''' Abre um .zip para escrita, criando-o se não existir ou reabrindo em modo
-    ''' de atualização (adicionar entradas) se já existir.
-    ''' </summary>
     Private Shared Function AbrirZip(caminho As String) As ZipArchive
-        Dim modo As ZipArchiveMode
-
-        If File.Exists(caminho) Then
-            modo = ZipArchiveMode.Update
-        Else
-            modo = ZipArchiveMode.Create
-        End If
-
+        Dim modo As ZipArchiveMode = If(File.Exists(caminho), ZipArchiveMode.Update, ZipArchiveMode.Create)
         Return ZipFile.Open(caminho, modo)
     End Function
 
     ''' <summary>
-    ''' Escreve um único XML (lido do banco) como uma entrada dentro do zip já aberto.
+    ''' Escreve um XML (array de bytes) diretamente no ZIP, sem conversão de codificação.
     ''' </summary>
-    ''' <param name="zip">Zip já aberto (ver <see cref="AbrirZip"/>).</param>
-    ''' <param name="nomeArquivo">Nome do arquivo dentro do zip (ex.: "{chave}.xml").</param>
-    ''' <param name="valor">
-    ''' Valor cru vindo do <c>NpgsqlDataReader</c> (tipicamente uma coluna text).
-    ''' Se for <c>DBNull.Value</c>, Nothing, ou string vazia/só espaços, a
-    ''' função simplesmente não escreve nada (não é tratado como erro — muitas
-    ''' linhas legitimamente não têm XML gerado ainda).
-    ''' </param>
-    Public Shared Sub ExportarXml(
-        zip As ZipArchive,
-        nomeArquivo As String,
-        valor As Object)
-
-        If valor Is DBNull.Value Then Return
-        If valor Is Nothing Then Return
-
-        Dim xml As String = valor.ToString()
-        If String.IsNullOrWhiteSpace(xml) Then Return
-
+    Private Shared Sub ExportarXml(zip As ZipArchive, nomeArquivo As String, bytesXml As Byte())
+        If bytesXml Is Nothing OrElse bytesXml.Length = 0 Then Return
         Dim entry = zip.CreateEntry(nomeArquivo)
-
         Using stream = entry.Open()
-            Using sw As New StreamWriter(stream, System.Text.Encoding.UTF8)
-                sw.Write(xml)
-            End Using
+            stream.Write(bytesXml, 0, bytesXml.Length)
         End Using
     End Sub
-
-    ''' <summary>
-    ''' Conta quantos XMLs seriam exportados com os filtros informados, sem
-    ''' exportar nada — usado para preencher a barra de progresso antes de uma
-    ''' exportação de verdade começar.
-    ''' </summary>
-    ''' <param name="modelo">
-    ''' 65 = só NFC-e (tabela cupons), 55 = só NFe (tabela vendas), qualquer
-    ''' outro valor (normalmente 0) = soma os dois, chamando este mesmo método
-    ''' recursivamente uma vez para cada modelo.
-    ''' </param>
-    ''' <returns>Quantidade total de linhas que batem com os filtros.</returns>
-    ''' <remarks>
-    ''' Os filtros e a lógica de cada bloco (65/55) espelham exatamente
-    ''' <see cref="ExportarNFCe"/>/<see cref="ExportarNFe"/> — se mudar um
-    ''' filtro lá, mude aqui também, senão a contagem prévia (mostrada antes de
-    ''' exportar) fica diferente da quantidade realmente exportada.
-    ''' </remarks>
     Public Shared Function ContarXMLs(
         conn As NpgsqlConnection,
         cod_empresa As Integer,

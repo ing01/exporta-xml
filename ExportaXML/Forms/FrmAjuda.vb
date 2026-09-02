@@ -31,7 +31,9 @@ Public Class FrmAjuda
         Dim configuracoes = NovoNo(trvTopicos.Nodes, "configuracoes", "Configurações")
         NovoNo(configuracoes.Nodes, "conexao", "Conexão com o banco")
         NovoNo(configuracoes.Nodes, "email", "E-mail")
+        NovoNo(configuracoes.Nodes, "destinatarios", "Destinatários por Empresa")
         NovoNo(configuracoes.Nodes, "agendamento", "Agendamento automático")
+        NovoNo(configuracoes.Nodes, "restaurar", "Restaurar versão (GitHub)")
 
         NovoNo(trvTopicos.Nodes, "atualizacao", "Atualização automática")
         NovoNo(trvTopicos.Nodes, "bandeja", "Execução em segundo plano")

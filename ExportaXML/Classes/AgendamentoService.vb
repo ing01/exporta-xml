@@ -131,57 +131,85 @@ Public Class AgendamentoService
 
             For Each banco As ConexaoBanco In cfg.Conexoes
                 Using conn = Conexao.Abrir(banco.Servidor, banco.Porta, banco.Banco, banco.Usuario, banco.Senha)
-                    Dim empresas As List(Of EmpresaItem) =
-                        EmpresaService.Listar(conn).Where(Function(emp) emp.Codigo <> 0).ToList()
+                    Dim empresas As List(Of EmpresaItem) = EmpresaService.Listar(conn).Where(Function(emp) emp.Codigo <> 0).ToList()
 
                     LogService.Registrar(caminhoLog, $"{banco.Nome}: {empresas.Count} empresa(s) encontrada(s).")
 
-                    ExportadorXML.ExportarTodasEmpresas(
-                        conn,
-                        empresas,
-                        dataInicial,
-                        dataFinal,
-                        caminhoZip,
-                        True,
-                        True,
-                        True,
-                        0,
-                        Nothing,
-                        Nothing,
-                        "",
-                        Sub(status As String)
-                            LogService.Registrar(caminhoLog, $"{banco.Nome}: {status}")
-                            atualizarStatus?.Invoke(status)
-                        End Sub)
+                    ' Para cada empresa, gera um ZIP específico e envia para o destinatário configurado para ela.
+                    For Each empresa In empresas
+                        atualizarStatus?.Invoke($"Exportando empresa {empresa.Nome} ({empresa.Codigo})...")
+                        Dim nomeZipEmpresa As String = $"{empresa.Codigo:000}_{ExportadorXML.NomeArquivoValido(empresa.Nome)}.zip"
+                        Dim caminhoZipEmpresa As String = Path.Combine(pasta, nomeZipEmpresa)
+                        If File.Exists(caminhoZipEmpresa) Then File.Delete(caminhoZipEmpresa)
+
+                        ' Exporta apenas esta empresa para o ZIP temporário
+                        ExportadorXML.ExportarTodasEmpresas(
+                            conn,
+                            New List(Of EmpresaItem) From {empresa},
+                            dataInicial,
+                            dataFinal,
+                            caminhoZipEmpresa,
+                            True,
+                            True,
+                            True,
+                            0,
+                            Nothing,
+                            Nothing,
+                            "",
+                            Sub(status As String)
+                                LogService.Registrar(caminhoLog, $"{banco.Nome} - {empresa.Nome}: {status}")
+                                atualizarStatus?.Invoke(status)
+                            End Sub)
+
+                        If Not File.Exists(caminhoZipEmpresa) Then
+                            LogService.Registrar(caminhoLog, $"Arquivo não gerado para empresa {empresa.Nome} ({empresa.Codigo}), ignorando envio.")
+                            Continue For
+                        End If
+
+                        ' Determina destinatário com a ordem de prioridade: locais (config), DB, locais global, cfg.UltimoDestinatario
+                        Dim destinatario As String = ObterDestinatarioParaEmpresa(cfg, conn, empresa.Codigo)
+                        If String.IsNullOrWhiteSpace(destinatario) Then
+                            LogService.Registrar(caminhoLog, $"AVISO: nenhum destinatário configurado para empresa {empresa.Nome} ({empresa.Codigo}); e-mail não enviado.")
+                            ' Apaga arquivo temporário para não acumular
+                            Try
+                                File.Delete(caminhoZipEmpresa)
+                            Catch
+                            End Try
+                            Continue For
+                        End If
+
+                        Dim mensagem As String =
+    "Prezados," & vbCrLf & vbCrLf &
+    String.Format("Segue em anexo a exportação automática dos arquivos XML da empresa {0} referentes à competência {1}.", empresa.Nome, competencia) & vbCrLf & vbCrLf &
+    "Este e-mail foi enviado automaticamente pelo sistema."
+
+                        Try
+                            EmailService.Enviar(
+                                cfg.ServidorSMTP,
+                                cfg.PortaSMTP,
+                                cfg.UsuarioSMTP,
+                                cfg.SenhaSMTP,
+                                cfg.EmailRemetente.Trim(),
+                                destinatario.Trim(),
+                                $"XMLs Exportados - {empresa.Nome} - {competencia}",
+                                mensagem,
+                                caminhoZipEmpresa,
+                                cfg.UsarSSL)
+
+                            LogService.Registrar(caminhoLog, $"E-mail enviado para {destinatario} (Empresa: {empresa.Nome}).")
+                        Catch exEnv As Exception
+                            LogService.Registrar(caminhoLog, $"ERRO ao enviar e-mail para {destinatario} (Empresa: {empresa.Nome}): {exEnv.Message}")
+                        Finally
+                            Try
+                                File.Delete(caminhoZipEmpresa)
+                            Catch
+                            End Try
+                        End Try
+                    Next
                 End Using
             Next
 
-            LogService.Registrar(caminhoLog, $"ZIP gerado em: {caminhoZip}")
-
-            If String.IsNullOrWhiteSpace(cfg.UltimoDestinatario) Then
-                LogService.Registrar(caminhoLog, "AVISO: nenhum destinatário configurado; e-mail não enviado.")
-            Else
-                Dim mensagem As String =
-                    "Prezados," & vbCrLf & vbCrLf &
-                    $"Segue em anexo a exportação automática dos arquivos XML referentes à competência {competencia}." & vbCrLf & vbCrLf &
-                    "O arquivo ZIP contém os arquivos XML separados por empresa." & vbCrLf & vbCrLf &
-                    "Este e-mail foi enviado automaticamente pelo sistema."
-
-                EmailService.Enviar(
-                    cfg.ServidorSMTP,
-                    cfg.PortaSMTP,
-                    cfg.UsuarioSMTP,
-                    cfg.SenhaSMTP,
-                    cfg.EmailRemetente.Trim(),
-                    cfg.UltimoDestinatario.Trim(),
-                    $"XMLs Exportados - Todas as empresas - {competencia}",
-                    mensagem,
-                    caminhoZip,
-                    cfg.UsarSSL)
-
-                LogService.Registrar(caminhoLog, $"E-mail enviado para {cfg.UltimoDestinatario}.")
-            End If
-
+            ' Marca a competência como executada e salva configuração
             cfg.UltimaCompetenciaExecutada = competencia
             ConfiguracaoService.Salvar(cfg)
 
@@ -262,4 +290,38 @@ Public Class AgendamentoService
         End Try
     End Sub
 
+
+    Private Shared Function ObterDestinatarioParaEmpresa(cfg As Configuracoes, conn As NpgsqlConnection, codigoEmpresa As Integer) As String
+        ' 1) procurar em locais (config.json)
+        If cfg IsNot Nothing AndAlso cfg.DestinatariosLocais IsNot Nothing Then
+            Dim local = cfg.DestinatariosLocais.FirstOrDefault(Function(d) d.CodigoEmpresa = codigoEmpresa AndAlso d.Ativo)
+            If local IsNot Nothing Then
+                Return local.Email
+            End If
+        End If
+
+        ' 2) tentar no DB (SELECT)
+        Try
+            If conn IsNot Nothing Then
+                Dim dbVal = DestinatarioService.ObterPadrao(conn, codigoEmpresa)
+                If Not String.IsNullOrWhiteSpace(dbVal) Then Return dbVal
+            End If
+        Catch
+        End Try
+
+        ' 3) procurar local Global (codigo 0)
+        If cfg IsNot Nothing AndAlso cfg.DestinatariosLocais IsNot Nothing Then
+            Dim localG = cfg.DestinatariosLocais.FirstOrDefault(Function(d) d.CodigoEmpresa = 0 AndAlso d.Ativo)
+            If localG IsNot Nothing Then
+                Return localG.Email
+            End If
+        End If
+
+        ' 4) fallback para cfg.UltimoDestinatario
+        If cfg IsNot Nothing AndAlso Not String.IsNullOrWhiteSpace(cfg.UltimoDestinatario) Then
+            Return cfg.UltimoDestinatario
+        End If
+
+        Return String.Empty
+    End Function
 End Class

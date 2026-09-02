@@ -6,6 +6,7 @@ Imports System.Security.Principal
 Imports Microsoft.Extensions.DependencyInjection
 Imports Microsoft.Extensions.Hosting
 Imports Microsoft.Extensions.Hosting.WindowsServices
+Imports System.Text
 
 ''' <summary>
 ''' Ponto de entrada real do aplicativo. Existe como Sub Main explícito (em vez
@@ -37,6 +38,7 @@ Module EntryPoint
     ''' </remarks>
     <STAThread()>
     Sub Main()
+        Encoding.RegisterProvider(CodePagesEncodingProvider.Instance)
         VelopackApp.Build().Run()
 
         Dim argumentos As String() = Environment.GetCommandLineArgs().Skip(1).ToArray()

@@ -31,8 +31,8 @@ Public Class EmpresaService
                     Dim empresa As New Empresa()
 
                     empresa.Codigo = Convert.ToInt32(reader("codigo"))
-                    empresa.CNPJ = reader("cnpj").ToString()
-                    empresa.Razao = reader("razao").ToString()
+                    empresa.CNPJ = If(reader("cnpj"), "").ToString()
+                    empresa.Razao = If(reader("razao"), "").ToString()
 
                     Return empresa
 
@@ -77,8 +77,8 @@ ORDER BY codigo"
 
                     lista.Add(New EmpresaItem With {
                         .Codigo = rd.GetInt32(0),
-                        .Nome = rd.GetString(1),
-                        .CNPJ = rd.GetString(2)
+                        .Nome = If(rd.IsDBNull(1), $"Empresa {rd.GetInt32(0)}", rd.GetString(1)),
+                        .CNPJ = If(rd.IsDBNull(2), "", rd.GetString(2))
                     })
 
                 End While

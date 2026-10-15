@@ -73,7 +73,7 @@ Public Class AtualizacaoService
 
             Return novaVersao
         Catch ex As Exception
-            LogService.Registrar(CaminhoLog, "ERRO ao verificar atualização: " & ex.ToString())
+            ErroAmigavel.Registrar(CaminhoLog, "ERRO ao verificar atualização", ex)
             Return Nothing
         End Try
     End Function
@@ -95,8 +95,16 @@ Public Class AtualizacaoService
     ''' (<see cref="Application.Exit"/> + <see cref="Environment.Exit"/>) — sem
     ''' isso, o atualizador externo ficaria esperando os 60s à toa.
     ''' </remarks>
-    Public Shared Sub BaixarEAplicar(info As UpdateInfo)
+    Public Shared Function BaixarEAplicar(info As UpdateInfo) As Boolean
         Try
+            ' Nunca derruba o programa no meio de uma exportação/envio: o agendamento
+            ' mensal que fosse interrompido assim reenviaria e-mails ao reabrir. A
+            ' verificação automática tenta de novo no próximo ciclo (30 min).
+            If OperacaoEmAndamento.HaOperacao Then
+                LogService.Registrar(CaminhoLog, $"Atualização {info.TargetFullRelease.Version} adiada: há uma exportação/envio em andamento.")
+                Return False
+            End If
+
             Dim mgr = ObterGerenciador()
 
             LogService.Registrar(CaminhoLog, $"Baixando atualização {info.TargetFullRelease.Version}...")
@@ -108,8 +116,9 @@ Public Class AtualizacaoService
             Application.Exit()
             Environment.Exit(0)
         Catch ex As Exception
-            LogService.Registrar(CaminhoLog, "ERRO ao baixar/aplicar atualização: " & ex.ToString())
+            ErroAmigavel.Registrar(CaminhoLog, "ERRO ao baixar/aplicar atualização", ex)
         End Try
-    End Sub
+        Return True
+    End Function
 
 End Class

@@ -36,20 +36,68 @@ Public Class ConfiguracaoService
     ''' campos alterados por outra parte do código entre o load e o save.
     ''' </summary>
     Public Shared Sub Salvar(config As Configuracoes)
+        SyncLock TravaArquivo
+            Dim pasta As String = Path.GetDirectoryName(Caminho)
+            If Not Directory.Exists(pasta) Then
+                Directory.CreateDirectory(pasta)
+            End If
 
-        Dim pasta As String = Path.GetDirectoryName(Caminho)
-        If Not Directory.Exists(pasta) Then
-            Directory.CreateDirectory(pasta)
-        End If
+            Dim json As String =
+                JsonSerializer.Serialize(config,
+                New JsonSerializerOptions With {
+                    .WriteIndented = True
+                })
 
-        Dim json As String =
-            JsonSerializer.Serialize(config,
-            New JsonSerializerOptions With {
-                .WriteIndented = True
-            })
+            ' Grava num arquivo temporário e troca no final: quem estiver lendo ao
+            ' mesmo tempo (o app e o Windows Service dividem este arquivo) nunca
+            ' vê um JSON pela metade. O arquivo anterior vira o .bak.
+            Dim temporario As String = Caminho & ".tmp"
+            File.WriteAllText(temporario, json)
 
-        File.WriteAllText(Caminho, json)
+            If File.Exists(Caminho) Then
+                File.Replace(temporario, Caminho, CaminhoBackup)
+            Else
+                File.Move(temporario, Caminho)
+            End If
 
+            ' O Replace/Move deixa o arquivo com o dono de quem gravou por último (app OU
+            ' serviço). Sem isto, depois que o serviço salvava a competência, o app do
+            ' usuário não conseguia mais salvar configurações.
+            PermissoesArquivo.LiberarParaUsuarios(Caminho)
+            PermissoesArquivo.LiberarParaUsuarios(CaminhoBackup)
+        End SyncLock
+    End Sub
+
+    ''' <summary>Trava de escrita/leitura dentro do mesmo processo (entre processos, a troca atômica do arquivo cobre o caso).</summary>
+    Private Shared ReadOnly TravaArquivo As New Object()
+
+    Private Shared ReadOnly CaminhoBackup As String = Caminho & ".bak"
+
+    ''' <summary>
+    ''' Preenchido quando <see cref="Carregar"/> precisou descartar um config.json
+    ''' ilegível (corrompido). A tela principal mostra uma vez, em português, e
+    ''' limpa com <see cref="ConsumirAvisoLeitura"/>.
+    ''' </summary>
+    Private Shared _avisoLeitura As String
+
+    Public Shared Function ConsumirAvisoLeitura() As String
+        Dim aviso = _avisoLeitura
+        _avisoLeitura = Nothing
+        Return aviso
+    End Function
+
+    ''' <summary>
+    ''' Atualiza SÓ a competência executada, relendo o arquivo atual antes de
+    ''' gravar. A execução mensal demora minutos; gravar o objeto
+    ''' <c>cfg</c> carregado no início sobrescreveria qualquer coisa que o
+    ''' usuário tenha mudado na tela nesse tempo.
+    ''' </summary>
+    Public Shared Sub SalvarCompetenciaExecutada(competencia As String)
+        SyncLock TravaArquivo
+            Dim atual = Carregar()
+            atual.UltimaCompetenciaExecutada = competencia
+            Salvar(atual)
+        End SyncLock
     End Sub
 
     ''' <summary>
@@ -65,14 +113,17 @@ Public Class ConfiguracaoService
             Return New Configuracoes()
         End If
 
-        Dim json As String = File.ReadAllText(Caminho)
-
-        Dim config = JsonSerializer.Deserialize(Of Configuracoes)(json)
+        Dim config As Configuracoes = LerArquivoComFallback()
+        If config Is Nothing Then config = New Configuracoes()
         MigrarConexaoUnica(config)
 
         ' Migração: se havia um destinatário legado em UltimoDestinatario, converte para DestinatariosLocais (Global) para não perder o valor após atualização
         If config.DestinatariosLocais Is Nothing Then
             config.DestinatariosLocais = New List(Of DestinatarioLocal)()
+        End If
+
+        If config.ConfiguracoesEmailPorEmpresa Is Nothing Then
+            config.ConfiguracoesEmailPorEmpresa = New List(Of ConfiguracaoEmailEmpresa)()
         End If
 
         If (config.DestinatariosLocais.Count = 0) AndAlso Not String.IsNullOrWhiteSpace(config.UltimoDestinatario) Then
@@ -92,6 +143,51 @@ Public Class ConfiguracaoService
 
         Return config
 
+    End Function
+
+    ''' <summary>
+    ''' Lê o config.json; se estiver ilegível (corrompido, vazio, truncado),
+    ''' tenta o .bak; se esse também falhar, guarda uma cópia do arquivo ruim
+    ''' (.corrompido-data) e devolve uma configuração em branco — o programa
+    ''' abre normalmente e avisa o usuário em português, em vez de dar erro.
+    ''' </summary>
+    Private Shared Function LerArquivoComFallback() As Configuracoes
+        Dim erroOriginal As Exception = Nothing
+
+        ' Outro processo pode estar no meio da troca do arquivo: tenta algumas vezes antes de desistir.
+        For tentativa = 1 To 3
+            Try
+                Return JsonSerializer.Deserialize(Of Configuracoes)(File.ReadAllText(Caminho))
+            Catch ex As IOException
+                erroOriginal = ex
+                Threading.Thread.Sleep(150)
+            Catch ex As JsonException
+                erroOriginal = ex
+                Exit For
+            End Try
+        Next
+
+        LogService.Registrar(Path.Combine(LogService.PastaLogs, "Configuracao.log"),
+                             $"config.json ilegível: {ErroAmigavel.Traduzir(erroOriginal)} | Técnico: {erroOriginal}")
+
+        Try
+            If File.Exists(CaminhoBackup) Then
+                Dim doBackup = JsonSerializer.Deserialize(Of Configuracoes)(File.ReadAllText(CaminhoBackup))
+                If doBackup IsNot Nothing Then
+                    _avisoLeitura = "O arquivo de configuração estava danificado. Foi restaurada a cópia de segurança anterior; confira se as configurações estão como esperado."
+                    Return doBackup
+                End If
+            End If
+        Catch
+        End Try
+
+        Try
+            File.Copy(Caminho, Caminho & $".corrompido-{DateTime.Now:yyyyMMdd-HHmmss}")
+        Catch
+        End Try
+
+        _avisoLeitura = "O arquivo de configuração estava danificado e não pôde ser recuperado. As configurações (bancos, e-mail e agendamento) precisam ser feitas de novo. Uma cópia do arquivo antigo foi guardada na pasta ExportaXML do ProgramData."
+        Return Nothing
     End Function
 
     ''' <summary>

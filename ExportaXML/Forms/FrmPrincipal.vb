@@ -58,6 +58,7 @@ Public Class FrmPrincipal
         End Select
 
         rbSaida.Checked = True
+        rbTodosEntrada.Checked = True
         AtualizarModoDirecao()
 
         lblQuantidade.Visible = False
@@ -72,11 +73,11 @@ Public Class FrmPrincipal
 
     ''' <summary>
     ''' Dispara só depois que a janela já apareceu na tela: tenta conectar e
-    ''' popular os combos de Empresa/Fornecedor, checa o estado do Vigia,
-    ''' dispara a primeira verificação de Agendamento/Atualização automática.
-    ''' Tudo isso pode envolver rede (banco) ou um processo externo (schtasks) —
-    ''' rodar depois do Shown garante que o usuário vê a janela imediatamente,
-    ''' mesmo que um banco esteja lento ou fora do ar.
+    ''' popular os combos de Empresa/Fornecedor, dispara a primeira verificação
+    ''' de Agendamento/Atualização automática. Tudo isso pode envolver rede
+    ''' (banco) ou um processo externo (schtasks) — rodar depois do Shown
+    ''' garante que o usuário vê a janela imediatamente, mesmo que um banco
+    ''' esteja lento ou fora do ar.
     ''' </summary>
     ''' <remarks>
     ''' Se usuário/senha do banco estiverem vazios em config.json, a conexão
@@ -86,9 +87,26 @@ Public Class FrmPrincipal
     ''' uma mensagem de status, nunca uma exceção não tratada.
     ''' </remarks>
     Private Async Sub FrmPrincipal_Shown(sender As Object, e As EventArgs) Handles MyBase.Shown
-        chkManterSempreAtivo.Checked = VigiaService.EstaAtivo()
+        ' Recurso "Manter sempre em execução" removido (ficava trazendo a janela
+        ' pra frente a cada 5 minutos, incomodando quem preferia deixar na bandeja).
+        ' Se essa instalação já tinha a tarefa cadastrada de uma versão antiga,
+        ' remove ela aqui, uma vez, silenciosamente.
+        Try
+            If VigiaService.EstaAtivo() Then
+                VigiaService.Desativar()
+                LogService.RegistrarAtividade("Vigia (manter sempre em execução) removido - recurso descontinuado")
+            End If
+        Catch
+        End Try
 
         Dim cfg = ConfiguracaoService.Carregar()
+
+        ' config.json corrompido: o programa abre mesmo assim; avisa em português o que aconteceu.
+        Dim avisoConfig As String = ConfiguracaoService.ConsumirAvisoLeitura()
+        If avisoConfig IsNot Nothing Then
+            MessageBox.Show(avisoConfig, "Configuração", MessageBoxButtons.OK, MessageBoxIcon.Warning)
+        End If
+
         Await CarregarEmpresasEFornecedoresAsync(cfg)
         carregando = False
 
@@ -176,6 +194,7 @@ Public Class FrmPrincipal
 
                     If rbEntrada.Checked Then
                         Dim cod_fornecedor As Integer = If(cboFornecedor.SelectedValue IsNot Nothing, CInt(cboFornecedor.SelectedValue), 0)
+                        Dim tipoEntrada As Integer = ObterTipoEntradaSelecionado()
 
                         parcial = ExportadorXML.BuscarCompras(
                             conn,
@@ -184,7 +203,8 @@ Public Class FrmPrincipal
                             dtInicio.Value,
                             dtFim.Value,
                             incluirEmitidos,
-                            incluirCancelados)
+                            incluirCancelados,
+                            tipoEntrada)
                     Else
                         Dim modelo As Integer
 
@@ -229,9 +249,41 @@ Public Class FrmPrincipal
                 $"Período={dtInicio.Value:dd/MM/yyyy}-{dtFim.Value:dd/MM/yyyy} -> {resultado.Rows.Count} XML(s) encontrado(s)")
 
         Catch ex As Exception
-            LogService.RegistrarAtividade($"Pesquisar -> ERRO: {ex.Message}")
-            MessageBox.Show($"Erro ao pesquisar: {ex.Message}", "Erro", MessageBoxButtons.OK, MessageBoxIcon.Error)
+            LogService.RegistrarAtividade($"Pesquisar -> ERRO: {ErroAmigavel.Traduzir(ex)} | Técnico: {ex}")
+            MessageBox.Show($"Não foi possível pesquisar." & vbCrLf & vbCrLf & ErroAmigavel.Traduzir(ex),
+                            "Erro ao pesquisar", MessageBoxButtons.OK, MessageBoxIcon.Error)
         End Try
+    End Sub
+
+    ''' <summary>
+    ''' Destaca (cor de fundo diferente) as linhas sem nenhum XML gerado —
+    ''' NFC-e (nem autorizado, nem cancelado, nem inutilização), NFe
+    ''' (<c>arq_xml</c> vazio) ou Compras de Fornecedores (<c>arq_xml</c>
+    ''' vazio, típico de notas lançadas antes do DS Estoque 4.8.239) — coluna
+    ''' "SemXml" calculada em <see cref="ExportadorXML.BuscarCupons"/>/
+    ''' <see cref="ExportadorXML.BuscarCompras"/>. Esses documentos aparecem
+    ''' na grade (batem com o filtro de data/status), mas não têm arquivo pra
+    ''' exportar; sem esse destaque, o motivo de "faltar" um documento no ZIP
+    ''' exportado não seria óbvio pra quem está pesquisando.
+    ''' </summary>
+    Private Sub dgvCupons_DataBindingComplete(sender As Object, e As DataGridViewBindingCompleteEventArgs) Handles dgvCupons.DataBindingComplete
+        Dim existeSemXml As Boolean = False
+
+        For Each linha As DataGridViewRow In dgvCupons.Rows
+            Dim dataRow = TryCast(linha.DataBoundItem, DataRowView)
+            Dim semXml As Boolean =
+                dataRow IsNot Nothing AndAlso
+                dataRow.Row.Table.Columns.Contains("SemXml") AndAlso
+                Convert.ToBoolean(dataRow("SemXml"))
+
+            If semXml Then
+                existeSemXml = True
+                linha.DefaultCellStyle.BackColor = Color.FromArgb(255, 235, 156)
+                linha.DefaultCellStyle.ForeColor = Color.FromArgb(153, 76, 0)
+            End If
+        Next
+
+        lblAvisoSemXml.Visible = existeSemXml
     End Sub
 
     ''' <summary>
@@ -248,6 +300,12 @@ Public Class FrmPrincipal
     ''' tela ficaria congelada até o fim de toda a exportação.
     ''' </remarks>
     Private Sub btnExportar_Click(sender As Object, e As EventArgs) Handles btnExportar.Click
+        ' O Application.DoEvents() abaixo deixa a tela processar cliques: sem esta
+        ' trava, um segundo clique em Exportar rodava uma segunda exportação por cima da primeira.
+        If _exportando Then Exit Sub
+        _exportando = True
+        Dim operacao = OperacaoEmAndamento.Iniciar()
+
         Try
             Dim cupomInicial As Integer?
             Dim cupomFinal As Integer?
@@ -267,6 +325,11 @@ Public Class FrmPrincipal
 
             Dim empresaSelecionada = DirectCast(cboEmpresa.SelectedItem, EmpresaItem)
 
+            ' Lista das empresas realmente incluídas nesta exportação — usada só
+            ' pra montar o corpo do e-mail (ver mais abaixo); com "Todas as
+            ' empresas" (Codigo=0) fica preenchida durante o loop por conexão.
+            Dim empresasExportadas As New List(Of EmpresaItem)
+
             lblStatus.Text = "Contando XMLs..."
             lblStatus.Visible = True
             Application.DoEvents()
@@ -284,59 +347,163 @@ Public Class FrmPrincipal
                 incluirInutilizados = True
             End If
 
-            Dim modelo As Integer
-
-            If rbNFCe.Checked Then
-                modelo = 65
-            ElseIf rbNFe.Checked Then
-                modelo = 55
-            Else
-                modelo = 0 'Ambos
-            End If
-
-            Dim serie As String = txbSerie.Text.Trim()
-
             If IO.File.Exists(txtDestino.Text) Then
                 IO.File.Delete(txtDestino.Text)
             End If
 
-            If empresaSelecionada.Codigo = 0 Then
+            If rbSaida.Checked Then
                 ' ==========================================
-                ' TODAS AS EMPRESAS (de todos os bancos configurados)
+                ' SAÍDA (NFC-e / NFe)
                 ' ==========================================
-                Dim conexoesAbertas As New List(Of NpgsqlConnection)
+                Dim modelo As Integer
 
-                Try
-                    Dim totalGeral As Integer = 0
-                    Dim empresasPorConexao As New List(Of (Conn As NpgsqlConnection, Empresas As List(Of EmpresaItem)))
+                If rbNFCe.Checked Then
+                    modelo = 65
+                ElseIf rbNFe.Checked Then
+                    modelo = 55
+                Else
+                    modelo = 0 'Ambos
+                End If
 
-                    For Each banco As ConexaoBanco In cfg.Conexoes
-                        Dim conn = Conexao.Abrir(banco.Servidor, banco.Porta, banco.Banco, banco.Usuario, banco.Senha)
-                        conexoesAbertas.Add(conn)
+                Dim serie As String = txbSerie.Text.Trim()
+                Dim agruparPorSerie As Boolean = chkAgruparPorSerie.Checked
 
-                        totalGeral += ExportadorXML.ContarXMLs(
-                            conn, 0, dtInicio.Value, dtFim.Value,
-                            incluirEmitidos, incluirCancelados, incluirInutilizados,
-                            modelo, cupomInicial, cupomFinal, serie)
+                If empresaSelecionada.Codigo = 0 Then
+                    ' ------------------------------------------
+                    ' TODAS AS EMPRESAS (de todos os bancos configurados)
+                    ' ------------------------------------------
+                    Dim conexoesAbertas As New List(Of NpgsqlConnection)
 
-                        Dim empresasDaConexao = EmpresaService.Listar(conn).Where(Function(emp) emp.Codigo <> 0).ToList()
-                        empresasPorConexao.Add((conn, empresasDaConexao))
-                    Next
+                    ' Gera os zips de empresa de TODOS os bancos numa lista só e junta tudo
+                    ' no zip final com UMA ÚNICA chamada a MesclarZipsDeEmpresas — chamar o
+                    ' merge uma vez por banco reabriria o zip final em modo Update várias
+                    ' vezes, o que se mostrou instável com as entradas aninhadas de
+                    ' "Exportar por série" (ver ExportadorXML.ExportarSaida).
+                    Dim pastaTemporariaSessao As String = IO.Path.Combine(IO.Path.GetTempPath(), "ExportadorXML_" & Guid.NewGuid().ToString())
+                    IO.Directory.CreateDirectory(pastaTemporariaSessao)
 
-                    pbExportacao.Minimum = 0
-                    pbExportacao.Maximum = totalGeral
-                    pbExportacao.Value = 0
-                    lblQuantidade.Text = $"0 / {totalGeral}"
-                    lblQuantidade.Visible = True
-                    lblStatus.Text = "Exportando..."
-                    Application.DoEvents()
+                    Try
+                        Dim totalGeral As Integer = 0
+                        Dim empresasPorConexao As New List(Of (Conn As NpgsqlConnection, Empresas As List(Of EmpresaItem)))
 
-                    Dim totalProcessadoGeral As Integer = 0
+                        For Each banco As ConexaoBanco In cfg.Conexoes
+                            Dim conn = Conexao.Abrir(banco.Servidor, banco.Porta, banco.Banco, banco.Usuario, banco.Senha)
+                            conexoesAbertas.Add(conn)
 
-                    For Each item In empresasPorConexao
-                        ExportadorXML.ExportarTodasEmpresas(
-                            item.Conn,
-                            item.Empresas,
+                            totalGeral += ExportadorXML.ContarXMLs(
+                                conn, 0, dtInicio.Value, dtFim.Value,
+                                incluirEmitidos, incluirCancelados, incluirInutilizados,
+                                modelo, cupomInicial, cupomFinal, serie)
+
+                            Dim empresasDaConexao = EmpresaService.Listar(conn).Where(Function(emp) emp.Codigo <> 0).ToList()
+                            empresasPorConexao.Add((conn, empresasDaConexao))
+                            empresasExportadas.AddRange(empresasDaConexao)
+                        Next
+
+                        pbExportacao.Minimum = 0
+                        pbExportacao.Maximum = totalGeral
+                        pbExportacao.Value = 0
+                        lblQuantidade.Text = $"0 / {totalGeral}"
+                        lblQuantidade.Visible = True
+                        lblStatus.Text = "Exportando..."
+                        Application.DoEvents()
+
+                        Dim totalProcessadoGeral As Integer = 0
+                        Dim arquivosGerados As New List(Of String)
+                        Dim indiceBanco As Integer = 0
+
+                        For Each item In empresasPorConexao
+                            indiceBanco += 1
+                            Dim pastaBanco As String = IO.Path.Combine(pastaTemporariaSessao, "banco" & indiceBanco)
+                            IO.Directory.CreateDirectory(pastaBanco)
+
+                            arquivosGerados.AddRange(ExportadorXML.GerarZipsPorEmpresa(
+                                item.Conn,
+                                item.Empresas,
+                                dtInicio.Value,
+                                dtFim.Value,
+                                pastaBanco,
+                                incluirEmitidos,
+                                incluirCancelados,
+                                incluirInutilizados,
+                                modelo,
+                                cupomInicial,
+                                cupomFinal,
+                                serie,
+                                Sub(status As String)
+                                    lblStatus.Text = status
+                                    Application.DoEvents()
+                                End Sub,
+                                Sub(processados As Integer, totalItem As Integer)
+                                    totalProcessadoGeral += 1
+                                    pbExportacao.Value = Math.Min(totalProcessadoGeral, pbExportacao.Maximum)
+                                    lblQuantidade.Text = $"{totalProcessadoGeral} / {totalGeral}"
+                                    lblQuantidade.Visible = True
+                                    Application.DoEvents()
+                                End Sub,
+                                agruparPorSerie))
+                        Next
+
+                        lblStatus.Text = "Montando ZIP final..."
+                        Application.DoEvents()
+                        ExportadorXML.MesclarZipsDeEmpresas(txtDestino.Text, arquivosGerados)
+                    Finally
+                        For Each conn In conexoesAbertas
+                            conn.Dispose()
+                        Next
+
+                        If IO.Directory.Exists(pastaTemporariaSessao) Then
+                            Try
+                                IO.Directory.Delete(pastaTemporariaSessao, True)
+                            Catch
+                                ' Se algum arquivo estiver em uso, não interrompe a exportação.
+                            End Try
+                        End If
+                    End Try
+                Else
+                    ' ------------------------------------------
+                    ' UMA EMPRESA
+                    ' ------------------------------------------
+                    empresasExportadas.Add(empresaSelecionada)
+
+                    Using conn = Conexao.Abrir(
+                        empresaSelecionada.Conexao.Servidor,
+                        empresaSelecionada.Conexao.Porta,
+                        empresaSelecionada.Conexao.Banco,
+                        empresaSelecionada.Conexao.Usuario,
+                        empresaSelecionada.Conexao.Senha)
+
+                        Dim total As Integer = ExportadorXML.ContarXMLs(
+                            conn,
+                            empresaSelecionada.Codigo,
+                            dtInicio.Value,
+                            dtFim.Value,
+                            incluirEmitidos,
+                            incluirCancelados,
+                            incluirInutilizados,
+                            modelo,
+                            cupomInicial,
+                            cupomFinal,
+                            serie)
+
+                        pbExportacao.Minimum = 0
+                        pbExportacao.Maximum = total
+                        pbExportacao.Value = 0
+
+                        lblQuantidade.Text = $"0 / {total}"
+                        lblQuantidade.Visible = True
+                        lblStatus.Text = "Exportando..."
+                        Application.DoEvents()
+
+                        Dim processadosUnica As Integer = 0
+
+                        ' ExportarSaida abre o zip de destino uma única vez e escreve
+                        ' NFC-e e/ou NFe nele — evita reabrir o mesmo arquivo em modo
+                        ' Update (arriscado com as entradas aninhadas de "Exportar por
+                        ' série", ver comentário em ExportadorXML.ExportarSaida).
+                        ExportadorXML.ExportarSaida(
+                            conn,
+                            empresaSelecionada.Codigo,
                             dtInicio.Value,
                             dtFim.Value,
                             txtDestino.Text,
@@ -347,104 +514,148 @@ Public Class FrmPrincipal
                             cupomInicial,
                             cupomFinal,
                             serie,
-                            Sub(status As String)
-                                lblStatus.Text = status
+                            Sub(processados As Integer, totalItem As Integer)
+                                processadosUnica += 1
+                                pbExportacao.Value = Math.Min(processadosUnica, pbExportacao.Maximum)
+                                lblQuantidade.Text = $"{processadosUnica} / {total}"
                                 Application.DoEvents()
                             End Sub,
-                            Sub(processados As Integer, totalItem As Integer)
-                                totalProcessadoGeral += 1
-                                pbExportacao.Value = Math.Min(totalProcessadoGeral, pbExportacao.Maximum)
-                                lblQuantidade.Text = $"{totalProcessadoGeral} / {totalGeral}"
-                                lblQuantidade.Visible = True
-                                Application.DoEvents()
-                            End Sub)
-                    Next
-                Finally
-                    For Each conn In conexoesAbertas
-                        conn.Dispose()
-                    Next
-                End Try
+                            agruparPorSerie)
+                    End Using
+                End If
             Else
                 ' ==========================================
-                ' UMA EMPRESA
+                ' ENTRADA (Compras Próprias / Devoluções de Venda / Compras de
+                ' Fornecedores — esta última só a partir do DS Estoque 4.8.239)
                 ' ==========================================
-                Using conn = Conexao.Abrir(
-                    empresaSelecionada.Conexao.Servidor,
-                    empresaSelecionada.Conexao.Porta,
-                    empresaSelecionada.Conexao.Banco,
-                    empresaSelecionada.Conexao.Usuario,
-                    empresaSelecionada.Conexao.Senha)
+                Dim cod_fornecedor As Integer = If(cboFornecedor.SelectedValue IsNot Nothing, CInt(cboFornecedor.SelectedValue), 0)
+                Dim tipoEntrada As Integer = ObterTipoEntradaSelecionado()
 
-                    Dim total As Integer = ExportadorXML.ContarXMLs(
-                        conn,
-                        empresaSelecionada.Codigo,
-                        dtInicio.Value,
-                        dtFim.Value,
-                        incluirEmitidos,
-                        incluirCancelados,
-                        incluirInutilizados,
-                        modelo,
-                        cupomInicial,
-                        cupomFinal,
-                        serie)
+                If empresaSelecionada.Codigo = 0 Then
+                    ' ------------------------------------------
+                    ' TODAS AS EMPRESAS (de todos os bancos configurados) — gera
+                    ' os zips de empresa de TODOS os bancos numa lista só e
+                    ' junta tudo no zip final com UMA ÚNICA chamada, pelo mesmo
+                    ' motivo da Saída (ver ExportadorXML.ExportarEntrada).
+                    ' ------------------------------------------
+                    Dim conexoesAbertasEntrada As New List(Of NpgsqlConnection)
+                    Dim pastaTemporariaSessaoEntrada As String = IO.Path.Combine(IO.Path.GetTempPath(), "ExportadorXML_" & Guid.NewGuid().ToString())
+                    IO.Directory.CreateDirectory(pastaTemporariaSessaoEntrada)
 
-                    pbExportacao.Minimum = 0
-                    pbExportacao.Maximum = total
-                    pbExportacao.Value = 0
+                    Try
+                        Dim totalGeral As Integer = 0
+                        Dim empresasPorConexaoEntrada As New List(Of (Conn As NpgsqlConnection, Empresas As List(Of EmpresaItem)))
 
-                    lblQuantidade.Text = $"0 / {total}"
-                    lblQuantidade.Visible = True
-                    lblStatus.Text = "Exportando..."
-                    Application.DoEvents()
+                        For Each banco As ConexaoBanco In cfg.Conexoes
+                            Dim conn = Conexao.Abrir(banco.Servidor, banco.Porta, banco.Banco, banco.Usuario, banco.Senha)
+                            conexoesAbertasEntrada.Add(conn)
 
-                    ' Determinar quais tipos exportar
-                    Dim exportarNFCe As Boolean = (modelo = 0 Or modelo = 65)
-                    Dim exportarNFe As Boolean = (modelo = 0 Or modelo = 55)
+                            totalGeral += ExportadorXML.ContarXMLsEntrada(
+                                conn, 0, cod_fornecedor, dtInicio.Value, dtFim.Value,
+                                incluirEmitidos, incluirCancelados, tipoEntrada)
 
-                    Dim processadosUnica As Integer = 0
+                            Dim empresasDaConexao = EmpresaService.Listar(conn).Where(Function(emp) emp.Codigo <> 0).ToList()
+                            empresasPorConexaoEntrada.Add((conn, empresasDaConexao))
+                            empresasExportadas.AddRange(empresasDaConexao)
+                        Next
 
-                    If exportarNFCe Then
-                        ExportadorXML.ExportarNFCe(
-                            conn,
-                            empresaSelecionada.Codigo,
-                            dtInicio.Value,
-                            dtFim.Value,
-                            txtDestino.Text,
-                            incluirEmitidos,
-                            incluirCancelados,
-                            incluirInutilizados,
-                            cupomInicial,
-                            cupomFinal,
-                            serie,
+                        pbExportacao.Minimum = 0
+                        pbExportacao.Maximum = totalGeral
+                        pbExportacao.Value = 0
+                        lblQuantidade.Text = $"0 / {totalGeral}"
+                        lblQuantidade.Visible = True
+                        lblStatus.Text = "Exportando..."
+                        Application.DoEvents()
+
+                        Dim totalProcessadoGeral As Integer = 0
+                        Dim arquivosGeradosEntrada As New List(Of String)
+                        Dim indiceBancoEntrada As Integer = 0
+
+                        For Each item In empresasPorConexaoEntrada
+                            indiceBancoEntrada += 1
+                            Dim pastaBancoEntrada As String = IO.Path.Combine(pastaTemporariaSessaoEntrada, "banco" & indiceBancoEntrada)
+                            IO.Directory.CreateDirectory(pastaBancoEntrada)
+
+                            arquivosGeradosEntrada.AddRange(ExportadorXML.GerarZipsPorEmpresaEntrada(
+                                item.Conn,
+                                item.Empresas,
+                                cod_fornecedor,
+                                dtInicio.Value,
+                                dtFim.Value,
+                                pastaBancoEntrada,
+                                incluirEmitidos,
+                                incluirCancelados,
+                                tipoEntrada,
+                                Sub(status As String)
+                                    lblStatus.Text = status
+                                    Application.DoEvents()
+                                End Sub,
+                                Sub(processados As Integer, totalItem As Integer)
+                                    totalProcessadoGeral += 1
+                                    pbExportacao.Value = Math.Min(totalProcessadoGeral, pbExportacao.Maximum)
+                                    lblQuantidade.Text = $"{totalProcessadoGeral} / {totalGeral}"
+                                    lblQuantidade.Visible = True
+                                    Application.DoEvents()
+                                End Sub))
+                        Next
+
+                        lblStatus.Text = "Montando ZIP final..."
+                        Application.DoEvents()
+                        ExportadorXML.MesclarZipsDeEmpresas(txtDestino.Text, arquivosGeradosEntrada)
+                    Finally
+                        For Each conn In conexoesAbertasEntrada
+                            conn.Dispose()
+                        Next
+
+                        If IO.Directory.Exists(pastaTemporariaSessaoEntrada) Then
+                            Try
+                                IO.Directory.Delete(pastaTemporariaSessaoEntrada, True)
+                            Catch
+                                ' Se algum arquivo estiver em uso, não interrompe a exportação.
+                            End Try
+                        End If
+                    End Try
+                Else
+                    ' ------------------------------------------
+                    ' UMA EMPRESA
+                    ' ------------------------------------------
+                    empresasExportadas.Add(empresaSelecionada)
+
+                    Using conn = Conexao.Abrir(
+                        empresaSelecionada.Conexao.Servidor,
+                        empresaSelecionada.Conexao.Porta,
+                        empresaSelecionada.Conexao.Banco,
+                        empresaSelecionada.Conexao.Usuario,
+                        empresaSelecionada.Conexao.Senha)
+
+                        Dim total As Integer = ExportadorXML.ContarXMLsEntrada(
+                            conn, empresaSelecionada.Codigo, cod_fornecedor, dtInicio.Value, dtFim.Value,
+                            incluirEmitidos, incluirCancelados, tipoEntrada)
+
+                        pbExportacao.Minimum = 0
+                        pbExportacao.Maximum = total
+                        pbExportacao.Value = 0
+                        lblQuantidade.Text = $"0 / {total}"
+                        lblQuantidade.Visible = True
+                        lblStatus.Text = "Exportando..."
+                        Application.DoEvents()
+
+                        Dim processadosUnica As Integer = 0
+
+                        ' ExportarEntrada abre o zip de destino uma única vez e escreve
+                        ' os tipos aplicáveis nele — evita reabrir o mesmo arquivo em
+                        ' modo Update entre Próprias/Devoluções/Fornecedores.
+                        ExportadorXML.ExportarEntrada(
+                            conn, empresaSelecionada.Codigo, cod_fornecedor, dtInicio.Value, dtFim.Value, txtDestino.Text,
+                            incluirEmitidos, incluirCancelados, tipoEntrada,
                             Sub(processados As Integer, totalItem As Integer)
                                 processadosUnica += 1
                                 pbExportacao.Value = Math.Min(processadosUnica, pbExportacao.Maximum)
                                 lblQuantidade.Text = $"{processadosUnica} / {total}"
                                 Application.DoEvents()
                             End Sub)
-                    End If
-
-                    If exportarNFe Then
-                        ExportadorXML.ExportarNFe(
-                            conn,
-                            empresaSelecionada.Codigo,
-                            dtInicio.Value,
-                            dtFim.Value,
-                            txtDestino.Text,
-                            incluirEmitidos,
-                            incluirCancelados,
-                            modelo,
-                            cupomInicial,
-                            cupomFinal,
-                            serie,
-                            Sub(processados As Integer, totalItem As Integer)
-                                processadosUnica += 1
-                                pbExportacao.Value = Math.Min(processadosUnica, pbExportacao.Maximum)
-                                lblQuantidade.Text = $"{processadosUnica} / {total}"
-                                Application.DoEvents()
-                            End Sub)
-                    End If
-                End Using
+                    End Using
+                End If
             End If
 
             pbExportacao.Value = pbExportacao.Maximum
@@ -465,75 +676,115 @@ Public Class FrmPrincipal
                 MessageBoxIcon.Question)
 
             If resposta = DialogResult.Yes Then
-                Dim cfgEmail = ConfiguracaoService.Carregar()
                 Dim mensagem As String
+                Dim assuntoEmail As String
                 Dim competencia As String = dtInicio.Value.ToString("yyyyMM")
+                Dim competenciaExibicao As String = dtInicio.Value.ToString("MM/yyyy")
 
-                Dim nomeEmpresaEmail As String
                 If empresaSelecionada.Codigo = 0 Then
-                    nomeEmpresaEmail = "Todas as empresas"
+                    ' "Todas as empresas": assunto/corpo genéricos (não dá pra
+                    ' nomear só uma empresa) — lista cada empresa realmente
+                    ' incluída (nome + CNPJ, quando cadastrado) pra quem recebe
+                    ' saber exatamente o que está no ZIP sem precisar abri-lo.
+                    Dim listaEmpresasTexto As String =
+                        String.Join(", ", empresasExportadas.Select(
+                            Function(emp) If(String.IsNullOrWhiteSpace(emp.CNPJ), emp.Nome, $"{emp.Nome} ({emp.CNPJ})")))
+
+                    assuntoEmail = $"XMLs - Competência {competenciaExibicao}"
+
+                    mensagem = $"Prezados,
+
+                    Segue em anexo a exportação dos arquivos XML de notas e NFC-e referentes à competência {competenciaExibicao}.
+
+                    Empresas: {listaEmpresasTexto}
+
+                    O arquivo ZIP contém os arquivos XML separados por empresa.
+
+                    Em caso de dúvidas, permanecemos à disposição.
+
+                    Atenciosamente,"
                 Else
-                    nomeEmpresaEmail = empresaSelecionada.Nome
+                    assuntoEmail = "XMLs Exportados - " & empresaSelecionada.Nome & " - " & competencia
+
+                    mensagem = $"Prezados,
+
+                    Segue em anexo a exportação dos arquivos XML referentes à competência {competencia}.
+
+                    Empresa(s): {empresaSelecionada.Nome}
+
+                    O arquivo ZIP contém os arquivos XML separados por empresa.
+
+                    Em caso de dúvidas, permanecemos à disposição.
+
+                    Atenciosamente,
+                    {empresaSelecionada.Nome}"
                 End If
 
-                mensagem = $"Prezados,
+                ' Determina destinatário com a mesma ordem de prioridade do agendamento
+                ' automático (local por empresa -> banco -> local Global -> legado) —
+                ' ver AgendamentoService.ObterDestinatarioParaEmpresa. Isso garante que
+                ' "Todas as empresas" também usa o destinatário Global configurado, em
+                ' vez de exigir digitar o e-mail de novo a cada exportação.
+                ' Mas antes deixa o usuário escolher e CONFERIR a conta de envio e o
+                ' destinatário (ver FrmOpcoesEnvio). Antes, "Todas as empresas" usava
+                ' a configuração Global sem avisar e o envio podia falhar sem explicação.
+                Dim cfgApp = ConfiguracaoService.Carregar()
 
-                Segue em anexo a exportação dos arquivos XML referentes à competência {competencia}.
-
-                Empresa(s): {nomeEmpresaEmail}
-
-                O arquivo ZIP contém os arquivos XML separados por empresa.
-
-                Em caso de dúvidas, permanecemos à disposição.
-
-                Atenciosamente,
-                {nomeEmpresaEmail}"
-
-                ' Determina destinatário: se exportação por empresa (não Global), tentar obter do banco
-                Dim destinatarioFinal As String = String.Empty
-                If empresaSelecionada.Codigo <> 0 Then
-                    Dim cfgApp = ConfiguracaoService.Carregar()
-                    If cfgApp.Conexoes.Count > 0 Then
-                        Using conn = Conexao.Abrir(cfgApp.Conexoes(0).Servidor, cfgApp.Conexoes(0).Porta,
-                                                   cfgApp.Conexoes(0).Banco, cfgApp.Conexoes(0).Usuario,
-                                                   cfgApp.Conexoes(0).Senha)
-                            Try
-                                Dim dest = DestinatarioService.ObterPadrao(conn, empresaSelecionada.Codigo)
-                                If Not String.IsNullOrWhiteSpace(dest) Then
-                                    destinatarioFinal = dest.Trim()
-                                End If
-                            Catch
-                            End Try
-                        End Using
+                Dim destinatarioFinal As String
+                Dim configEmail As (Servidor As String, Porta As Integer, Usuario As String, Senha As String, Remetente As String, UsarSSL As Boolean)
+                Using frmEnvio As New FrmOpcoesEnvio(cfgApp, empresasExportadas, empresaSelecionada.Codigo = 0)
+                    If frmEnvio.ShowDialog(Me) <> DialogResult.OK Then
+                        LogService.RegistrarAtividade("Exportar: envio por e-mail cancelado pelo usuário")
+                        Exit Sub
                     End If
-                End If
-                ' Se não encontrou destinatário por empresa, fallback para cfg.UltimoDestinatario
-                If String.IsNullOrWhiteSpace(destinatarioFinal) Then
-                    Dim cfgBackup = ConfiguracaoService.Carregar()
-                    destinatarioFinal = cfgBackup.UltimoDestinatario.Trim()
-                End If
+                    destinatarioFinal = frmEnvio.Destinatario
+                    configEmail = frmEnvio.ConfigEmail
+                End Using
 
-                EmailService.Enviar(
-                    cfgEmail.ServidorSMTP,
-                    cfgEmail.PortaSMTP,
-                    cfgEmail.UsuarioSMTP,
-                    cfgEmail.SenhaSMTP,
-                    cfgEmail.EmailRemetente.Trim(),
-                    destinatarioFinal,
-                    "XMLs Exportados - " & nomeEmpresaEmail & " - " & competencia,
-                    mensagem,
-                    txtDestino.Text,
-                    cfgEmail.UsarSSL)
+                Try
+                    EmailService.Enviar(
+                        configEmail.Servidor,
+                        configEmail.Porta,
+                        configEmail.Usuario,
+                        configEmail.Senha,
+                        configEmail.Remetente.Trim(),
+                        destinatarioFinal,
+                        assuntoEmail,
+                        mensagem,
+                        txtDestino.Text,
+                        configEmail.UsarSSL)
+                Catch exEnvio As Exception
+                    LogService.RegistrarAtividade(
+                        $"Exportar -> ERRO ao enviar e-mail (servidor {configEmail.Servidor}:{configEmail.Porta}, usuário {configEmail.Usuario}, " &
+                        $"destinatário {destinatarioFinal}): {ErroAmigavel.Traduzir(exEnvio)} | Técnico: {exEnvio}")
+                    MessageBox.Show(
+                        "Não foi possível enviar o e-mail." & vbCrLf & vbCrLf &
+                        $"Servidor: {configEmail.Servidor}:{configEmail.Porta}" & vbCrLf &
+                        $"Usuário: {configEmail.Usuario}" & vbCrLf &
+                        $"Destinatário: {destinatarioFinal}" & vbCrLf & vbCrLf &
+                        $"Motivo: {ErroAmigavel.Traduzir(exEnvio)}" & vbCrLf & vbCrLf &
+                        "O arquivo ZIP foi gerado normalmente em: " & txtDestino.Text,
+                        "Erro no envio", MessageBoxButtons.OK, MessageBoxIcon.Error)
+                    Exit Sub
+                End Try
 
-                LogService.RegistrarAtividade($"Exportar: e-mail enviado para ""{destinatarioFinal}""")
+                LogService.RegistrarAtividade($"Exportar: e-mail enviado para ""{destinatarioFinal}"" via {configEmail.Servidor}")
                 MessageBox.Show("E-mail enviado com sucesso!", "Sucesso", MessageBoxButtons.OK, MessageBoxIcon.Information)
             End If
 
         Catch ex As Exception
-            LogService.RegistrarAtividade($"Exportar -> ERRO: {ex.Message}")
-            MessageBox.Show($"Erro na exportação: {ex.Message}", "Erro", MessageBoxButtons.OK, MessageBoxIcon.Error)
+            LogService.RegistrarAtividade($"Exportar -> ERRO: {ErroAmigavel.Traduzir(ex)} | Técnico: {ex}")
+            lblStatus.Text = "Falha na exportação."
+            MessageBox.Show($"Não foi possível concluir a exportação." & vbCrLf & vbCrLf & ErroAmigavel.Traduzir(ex),
+                            "Erro na exportação", MessageBoxButtons.OK, MessageBoxIcon.Error)
+        Finally
+            operacao.Dispose()
+            _exportando = False
         End Try
     End Sub
+
+    ''' <summary>True enquanto uma exportação manual está em andamento (impede clique duplo / reentrada via DoEvents).</summary>
+    Private _exportando As Boolean
 
     ''' <summary>
     ''' Monta o caminho padrão de exportação.
@@ -683,15 +934,21 @@ Public Class FrmPrincipal
 
                     For Each empresa As EmpresaItem In EmpresaService.Listar(conn).Where(Function(emp) emp.Codigo <> 0)
                         empresa.Conexao = banco
+                        ' NomeExibicao não é mais calculado sozinho (ver EmpresaItem.vb,
+                        ' alterado em outra frente pra permitir setar direto em FrmEmail) —
+                        ' precisa ser preenchido aqui, senão a combo mostra tudo em branco
+                        ' quando há mais de um banco (ver cboEmpresa.DisplayMember abaixo).
+                        empresa.NomeExibicao = If(cfg.Conexoes.Count > 1, $"{empresa.Nome} ({banco.Nome})", empresa.Nome)
                         todasEmpresas.Add(empresa)
                     Next
                 End Using
             Catch ex As Exception
-                errosConexao.Add($"{banco.Nome} ({ex.Message})")
+                LogService.RegistrarAtividade($"Erro ao conectar no banco {banco.Nome}: {ex}")
+                errosConexao.Add($"{banco.Nome} ({ErroAmigavel.Traduzir(ex)})")
             End Try
         Next
 
-        todasEmpresas.Insert(0, New EmpresaItem With {.Codigo = 0, .Nome = "Todas as empresas"})
+        todasEmpresas.Insert(0, New EmpresaItem With {.Codigo = 0, .Nome = "Todas as empresas", .NomeExibicao = "Todas as empresas"})
         Return (todasEmpresas, errosConexao, codificacoes)   ' <-- ALTERADO para incluir o dicionário
     End Function
 
@@ -767,11 +1024,6 @@ Public Class FrmPrincipal
         Dim frm As New FrmEmail
         frm.ShowDialog()
         AtualizarConfiguracoes()
-    End Sub
-
-    Private Sub btnMapearDestinatarios_Click(sender As Object, e As EventArgs) Handles btnMapearDestinatarios.Click
-        Dim frm As New FrmDestinatarios
-        frm.ShowDialog()
     End Sub
 
     Private Sub btnRestaurarVersao_Click(sender As Object, e As EventArgs) Handles btnRestaurarVersao.Click
@@ -860,28 +1112,44 @@ Public Class FrmPrincipal
         lblFornecedor.Visible = entrada
         cboFornecedor.Visible = entrada
 
-        lblModelo.Enabled = Not entrada
-        rbNFCe.Enabled = Not entrada
-        rbNFe.Enabled = Not entrada
-        rbAmbos.Enabled = Not entrada
+        ' Modelo/Status não se aplicam à Entrada — GroupBox2/GroupBox3 somem de
+        ' vez (não só desabilitam) pra abrir espaço pro grpTipoEntrada, que
+        ' ocupa a mesma área da tela.
+        GroupBox2.Visible = Not entrada
+        GroupBox3.Visible = Not entrada
+        grpTipoEntrada.Visible = entrada
 
-        lblStatusFiltro.Enabled = Not entrada
-        chkTodos.Enabled = Not entrada
-        chkEmitidas.Enabled = Not entrada
-        chkCancelados.Enabled = Not entrada
-        chkInutilizados.Enabled = Not entrada
+        ' Nº Doc./Série também não se aplicam — GroupBox4 some e o aviso
+        ' explicando o que é/não é exportado ocupa o lugar dele. "Exportar
+        ' por série" é a mesma história (não existe série pra Entrada).
+        GroupBox4.Visible = Not entrada
+        lblAvisoEntrada.Visible = entrada
+        chkAgruparPorSerie.Visible = Not entrada
 
-        lblNumDoc.Enabled = Not entrada
-        txbInicio.Enabled = Not entrada
-        txbFim.Enabled = Not entrada
-        lblSerieFiltro.Enabled = Not entrada
-        txbSerie.Enabled = Not entrada
-
-        btnExportar.Enabled = Not entrada
-        btnExportar.Text = If(entrada, "Indisponível", "Exportar")
+        ' Exportar agora funciona pra Entrada também (Compras Próprias / Devoluções de Venda).
+        btnExportar.Enabled = True
+        btnExportar.Text = "Exportar"
 
         Fornecedor.Visible = entrada
     End Sub
+
+    ''' <summary>
+    ''' Lê a opção marcada em <c>grpTipoEntrada</c> (visível só quando Direção=Entrada)
+    ''' e converte pro código usado por <see cref="ExportadorXML.BuscarCompras"/>/
+    ''' <see cref="ExportadorXML.ContarXMLsEntrada"/>/<see cref="ExportadorXML.ExportarEntrada"/>:
+    ''' 1 = Compras Próprias, 2 = Devoluções de Venda, 3 = Compras de
+    ''' Fornecedores (só funciona com notas do DS Estoque 4.8.239+), 4 = Todos
+    ''' (as três — padrão). O código 0 ("Ambas": só Próprias + Devoluções)
+    ''' continua existindo no backend por compatibilidade, mas não tem mais
+    ''' botão nesta tela — não fazia mais sentido manter um atalho só pra duas
+    ''' das três fontes depois que "Todos" passou a existir.
+    ''' </summary>
+    Private Function ObterTipoEntradaSelecionado() As Integer
+        If rbComprasPropias.Checked Then Return 1
+        If rbDevolucoesVenda.Checked Then Return 2
+        If rbComprasFornecedores.Checked Then Return 3
+        Return 4 ' rbTodosEntrada
+    End Function
 
     ''' <summary>
     ''' "Todos" e os checkboxes de status específicos são mutuamente exclusivos
@@ -918,6 +1186,25 @@ Public Class FrmPrincipal
 
         Dim cfg = ConfiguracaoService.Carregar()
         cfg.AgendamentoAtivo = chkAgendamentoAtivo.Checked
+
+        ' Ligar o agendamento no meio do mês, com o dia já passado, disparava o envio
+        ' do mês anterior na hora, sem aviso. Agora pergunta antes.
+        If cfg.AgendamentoAtivo AndAlso AgendamentoService.DeveExecutar(cfg) Then
+            Dim competencia As String = AgendamentoService.CompetenciaAnterior(Date.Today)
+            Dim resposta = MessageBox.Show(
+                $"O dia e o horário do agendamento deste mês já passaram, e a competência {competencia} ainda não foi enviada." & vbCrLf & vbCrLf &
+                "Deseja enviar agora os e-mails dessa competência?" & vbCrLf & vbCrLf &
+                "Sim = envia agora (em segundo plano)." & vbCrLf &
+                "Não = só começa a valer no próximo mês.",
+                "Ativar agendamento",
+                MessageBoxButtons.YesNo,
+                MessageBoxIcon.Question)
+
+            If resposta = DialogResult.No Then
+                cfg.UltimaCompetenciaExecutada = competencia
+            End If
+        End If
+
         ConfiguracaoService.Salvar(cfg)
 
         VerificarEExecutarAgendamento()
@@ -996,46 +1283,13 @@ Public Class FrmPrincipal
             End Using
         Catch ex As Exception
             MessageBox.Show(
-                $"Não foi possível alterar a inicialização com o Windows: {ex.Message}",
+                "Não foi possível alterar a inicialização com o Windows. Pode ser bloqueio de política da empresa ou falta de permissão." & vbCrLf & vbCrLf & ErroAmigavel.Traduzir(ex),
                 "Aviso",
                 MessageBoxButtons.OK,
                 MessageBoxIcon.Warning)
         End Try
     End Sub
 
-    ''' <summary>
-    ''' Liga/desliga o "Vigia" (<see cref="VigiaService"/>): uma tarefa no
-    ''' Agendador de Tarefas do Windows que tenta abrir o programa a cada
-    ''' poucos minutos — se já estiver aberto, não faz nada; se tiver caído ou
-    ''' sido fechado por engano, reabre sozinho. Não precisa de privilégio de
-    ''' administrador (tarefa do usuário atual, sem privilégios elevados).
-    ''' </summary>
-    Private Sub chkManterSempreAtivo_CheckedChanged(sender As Object, e As EventArgs) Handles chkManterSempreAtivo.CheckedChanged
-        If carregando Then Exit Sub
-
-        Try
-            If chkManterSempreAtivo.Checked Then
-                VigiaService.Ativar()
-                LogService.RegistrarAtividade("Vigia (manter sempre em execução) ativado")
-            Else
-                VigiaService.Desativar()
-                LogService.RegistrarAtividade("Vigia (manter sempre em execução) desativado")
-            End If
-        Catch ex As Exception
-            LogService.RegistrarAtividade($"Vigia (manter sempre em execução) -> ERRO: {ex.Message}")
-            MessageBox.Show(
-                $"Não foi possível alterar o Vigia: {ex.Message}",
-                "Aviso",
-                MessageBoxButtons.OK,
-                MessageBoxIcon.Warning)
-
-            ' Ressincroniza a caixa com o estado real, sem disparar este mesmo
-            ' handler de novo (carregando=True suprime CheckedChanged recursivo).
-            carregando = True
-            chkManterSempreAtivo.Checked = VigiaService.EstaAtivo()
-            carregando = False
-        End Try
-    End Sub
 
     ''' <summary>
     ''' Lê diretamente do registro do Windows se a entrada de inicialização
@@ -1071,16 +1325,36 @@ Public Class FrmPrincipal
 
         Try
             btnTestarAgendamento.Enabled = False
-            ExecutarAgendamento(forcar:=True)
+            Dim executou As Boolean = ExecutarAgendamento(forcar:=True)
+
+            If Not executou Then
+                LogService.RegistrarAtividade("Testar Agendamento (manual) -> recusado: já há exportação/agendamento em andamento")
+                MessageBox.Show(
+                    "Já existe uma exportação ou um agendamento em andamento (neste programa ou no serviço do Windows). Aguarde terminar e tente de novo.",
+                    "Agendamento",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Information)
+                Exit Sub
+            End If
+
             LogService.RegistrarAtividade("Testar Agendamento (manual) -> concluído")
-            MessageBox.Show(
-                "Agendamento executado. Confira o log em ""Logs"" e o e-mail enviado.",
-                "Agendamento",
-                MessageBoxButtons.OK,
-                MessageBoxIcon.Information)
+
+            Dim pendencia = PendenciaAgendamentoService.Obter()
+            If pendencia IsNot Nothing AndAlso pendencia.HaFalha Then
+                MessageBox.Show(
+                    "O agendamento foi executado, mas houve falhas:" & vbCrLf & vbCrLf & pendencia.Mensagem & vbCrLf & vbCrLf &
+                    "Veja os detalhes no botão Ver log (aba Configurações).",
+                    "Agendamento", MessageBoxButtons.OK, MessageBoxIcon.Warning)
+            Else
+                MessageBox.Show(
+                    "Agendamento executado com sucesso. Confira o e-mail enviado ou o log no botão Ver log (aba Configurações).",
+                    "Agendamento",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Information)
+            End If
         Catch ex As Exception
-            LogService.RegistrarAtividade($"Testar Agendamento (manual) -> ERRO: {ex.Message}")
-            MessageBox.Show($"Falha ao testar o agendamento: {ex.Message}", "Erro", MessageBoxButtons.OK, MessageBoxIcon.Error)
+            LogService.RegistrarAtividade($"Testar Agendamento (manual) -> ERRO: {ErroAmigavel.Traduzir(ex)} | Técnico: {ex}")
+            MessageBox.Show("Não foi possível testar o agendamento." & vbCrLf & vbCrLf & ErroAmigavel.Traduzir(ex), "Erro", MessageBoxButtons.OK, MessageBoxIcon.Error)
         Finally
             btnTestarAgendamento.Enabled = True
         End Try
@@ -1120,12 +1394,28 @@ Public Class FrmPrincipal
             Dim cfg = ConfiguracaoService.Carregar()
             If Not AgendamentoService.DeveExecutar(cfg) Then Exit Sub
 
-            Task.Run(Sub() ExecutarAgendamento(forcar:=False))
-        Catch
-            ' Verificação silenciosa: qualquer falha aqui já é tratada e registrada
-            ' dentro de AgendamentoService.ExecutarAgendamentoMensal.
+            ' Já tem uma execução em curso (ou em espera por falha anterior)? Nem dispara outra thread.
+            If OperacaoEmAndamento.HaOperacao Then Exit Sub
+
+            Task.Run(Sub()
+                         Try
+                             ExecutarAgendamento(forcar:=False)
+                         Catch ex As Exception
+                             LogService.RegistrarAtividade($"Agendamento automático -> ERRO inesperado: {ErroAmigavel.Traduzir(ex)} | Técnico: {ex}")
+                         End Try
+                     End Sub)
+        Catch ex As Exception
+            ' A execução em si registra seus próprios erros; aqui só cai falha ao LER a
+            ' configuração. Antes era engolida sem rastro (e o agendamento "não rodava" sem ninguém saber).
+            If ex.Message <> _ultimoErroVerificacao Then
+                _ultimoErroVerificacao = ex.Message
+                LogService.RegistrarAtividade($"Agendamento automático -> não foi possível verificar: {ErroAmigavel.Traduzir(ex)} | Técnico: {ex}")
+            End If
         End Try
     End Sub
+
+    ''' <summary>Último erro de verificação já logado — evita repetir a mesma linha a cada minuto.</summary>
+    Private _ultimoErroVerificacao As String
 
     ''' <summary>
     ''' Se houver uma falha de agendamento pendente (gravada em
@@ -1140,12 +1430,12 @@ Public Class FrmPrincipal
     ''' </summary>
     Private Sub VerificarPendenciaEAvisar()
         Dim pendencia = PendenciaAgendamentoService.Obter()
-        If pendencia Is Nothing OrElse pendencia.Notificada Then Exit Sub
+        If pendencia Is Nothing OrElse Not pendencia.HaFalha OrElse pendencia.Notificada Then Exit Sub
 
         notifyIcon1.ShowBalloonTip(
             10000,
             "Falha no agendamento automático",
-            $"O envio agendado de {pendencia.Competencia} não foi concluído: {pendencia.Mensagem}",
+            $"O envio agendado de {pendencia.Competencia} não foi concluído: {pendencia.Mensagem} (Detalhes: botão Ver log, aba Configurações)",
             ToolTipIcon.Warning)
 
         PendenciaAgendamentoService.MarcarNotificada()
@@ -1167,21 +1457,28 @@ Public Class FrmPrincipal
     ''' quanto de uma thread de fundo (verificação automática) — <c>Invoke</c>
     ''' funciona corretamente nos dois casos.
     ''' </remarks>
-    Private Sub ExecutarAgendamento(forcar As Boolean)
+    ''' <returns>False se não executou (ainda não é hora, ou já há outra execução em andamento).</returns>
+    Private Function ExecutarAgendamento(forcar As Boolean) As Boolean
         Dim cfg = ConfiguracaoService.Carregar()
 
-        If Not forcar AndAlso Not AgendamentoService.DeveExecutar(cfg) Then Exit Sub
+        If Not forcar AndAlso Not AgendamentoService.DeveExecutar(cfg) Then Return False
 
-        AgendamentoService.ExecutarAgendamentoMensal(
+        Return AgendamentoService.ExecutarAgendamentoMensal(
             cfg,
             Sub(status As String)
-                Me.Invoke(Sub()
-                              lblStatus.Text = status
-                              lblStatus.Visible = True
-                              Application.DoEvents()
-                          End Sub)
-            End Sub)
-    End Sub
+                ' Janela já fechada/destruída (ex.: programa encerrando): ignora em vez de estourar exceção na thread de fundo.
+                If IsDisposed OrElse Not IsHandleCreated Then Return
+                Try
+                    Me.Invoke(Sub()
+                                  lblStatus.Text = status
+                                  lblStatus.Visible = True
+                                  If forcar Then Application.DoEvents()
+                              End Sub)
+                Catch ex As ObjectDisposedException
+                End Try
+            End Sub,
+            forcar)
+    End Function
 
     '=========================
     ' ATUALIZAÇÃO AUTOMÁTICA
@@ -1219,7 +1516,12 @@ Public Class FrmPrincipal
 
                 If resposta = DialogResult.Yes Then
                     LogService.RegistrarAtividade($"Verificar Atualizações (manual) -> baixando e aplicando versão {info.TargetFullRelease.Version}")
-                    Await Task.Run(Sub() AtualizacaoService.BaixarEAplicar(info))
+                    Dim aplicou = Await Task.Run(Function() AtualizacaoService.BaixarEAplicar(info))
+                    If Not aplicou Then
+                        MessageBox.Show(
+                            "Há uma exportação ou envio em andamento, então a atualização foi adiada para não interrompê-lo. Tente novamente quando terminar.",
+                            "Verificar Atualizações", MessageBoxButtons.OK, MessageBoxIcon.Information)
+                    End If
                 Else
                     LogService.RegistrarAtividade($"Verificar Atualizações (manual) -> versão {info.TargetFullRelease.Version} disponível, atualização recusada pelo usuário")
                 End If
@@ -1237,6 +1539,14 @@ Public Class FrmPrincipal
     ''' </summary>
     Private Sub btnAjuda_Click(sender As Object, e As EventArgs) Handles btnAjuda.Click
         AbrirGuiaDeAjuda()
+    End Sub
+
+    ''' <summary>Botão "Ver log" (abaixo de Ajuda): abre a janela com os logs e a última falha do agendamento.</summary>
+    Private Sub btnVerLog_Click(sender As Object, e As EventArgs) Handles btnVerLog.Click
+        LogService.RegistrarAtividade("Abriu Ver log (tela principal)")
+        Using frm As New FrmLog()
+            frm.ShowDialog(Me)
+        End Using
     End Sub
 
     Private Sub FrmPrincipal_KeyDown(sender As Object, e As KeyEventArgs) Handles MyBase.KeyDown
@@ -1276,7 +1586,7 @@ Public Class FrmPrincipal
             Dim info = Await Task.Run(Function() AtualizacaoService.VerificarAtualizacao())
             If info Is Nothing Then Return
 
-            Await Task.Run(Sub() AtualizacaoService.BaixarEAplicar(info))
+            Await Task.Run(Function() AtualizacaoService.BaixarEAplicar(info))
         Catch
             ' Qualquer falha aqui já fica registrada em Logs\Atualizacao.log;
             ' não interrompe o uso normal do aplicativo.
@@ -1315,6 +1625,15 @@ Public Class FrmPrincipal
     ''' do processo com <see cref="Environment.Exit"/> como garantia.
     ''' </summary>
     Private Sub SairToolStripMenuItem_Click(sender As Object, e As EventArgs) Handles SairToolStripMenuItem.Click
+        ' Fechar no meio de uma exportação/envio corta o ZIP ou o lote de e-mails ao meio.
+        If OperacaoEmAndamento.HaOperacao Then
+            Dim resposta = MessageBox.Show(
+                "Há uma exportação ou um envio de e-mails em andamento. Se sair agora, ele será interrompido." & vbCrLf & vbCrLf &
+                "Deseja sair mesmo assim?",
+                "Sair", MessageBoxButtons.YesNo, MessageBoxIcon.Warning, MessageBoxDefaultButton.Button2)
+            If resposta <> DialogResult.Yes Then Exit Sub
+        End If
+
         LogService.RegistrarAtividade("Sair (bandeja) - encerrando o aplicativo")
 
         notifyIcon1.Visible = False

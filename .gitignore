@@ -4,3 +4,6 @@ obj/
 *.user
 *.suo
 .release-token*
+# Saídas de publicação (binários gerados; distribuir via GitHub Releases)
+publish/
+Releases/

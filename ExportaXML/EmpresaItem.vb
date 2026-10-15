@@ -14,18 +14,9 @@ Public Class EmpresaItem
     ''' esta empresa. Sempre preenchido, exceto no item sentinela "Todas as empresas".
     ''' </summary>
     Public Property Conexao As ConexaoBanco
+    Public Property NomeExibicao As String
 
-    ''' <summary>
-    ''' "Nome (Banco)", para uso como <c>DisplayMember</c> quando há mais de uma
-    ''' conexão configurada — ver <see cref="FrmPrincipal.CarregarEmpresasEFornecedores"/>,
-    ''' que só troca o combo para este campo nesse caso (com uma única conexão,
-    ''' a combo usa <see cref="Nome"/> puro, idêntico ao comportamento anterior).
-    ''' </summary>
-    Public ReadOnly Property NomeExibicao As String
-        Get
-            If Conexao Is Nothing Then Return Nome
-            Return $"{Nome} ({Conexao.Nome})"
-        End Get
-    End Property
-
+    Public Overrides Function ToString() As String
+        Return Nome
+    End Function
 End Class

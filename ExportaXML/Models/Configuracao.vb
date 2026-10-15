@@ -63,6 +63,7 @@ Public Class Configuracoes
         UsarSSL = True
         ChaveCriptografia = String.Empty
         DestinatariosLocais = New List(Of DestinatarioLocal)()
+        ConfiguracoesEmailPorEmpresa = New List(Of ConfiguracaoEmailEmpresa)()
 
         AgendamentoAtivo = False
         HoraAgendamento = 8
@@ -76,6 +77,14 @@ Public Class Configuracoes
     Public Property UltimaEmpresa As Integer
     Public Property UltimoDestinatario As String
     Public Property DestinatariosLocais As List(Of DestinatarioLocal)
+
+    ''' <summary>
+    ''' Overrides de configuração de SMTP por empresa — ver
+    ''' <see cref="ConfiguracaoEmailEmpresa"/>. Empresas sem entrada aqui (ou
+    ''' com <c>Origem = "Padrao"</c>) usam a configuração Global acima
+    ''' (<see cref="ServidorSMTP"/> etc.).
+    ''' </summary>
+    Public Property ConfiguracoesEmailPorEmpresa As List(Of ConfiguracaoEmailEmpresa)
 
     ''' <summary>
     ''' OBSOLETO / não usado mais: o destino de exportação hoje é sempre calculado

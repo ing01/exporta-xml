@@ -9,6 +9,9 @@ Imports MimeKit
 ''' </summary>
 Public Class EmailService
 
+    ''' <summary>Tamanho máximo do anexo (MB) antes de recusar o envio com mensagem clara.</summary>
+    Public Const TamanhoMaximoAnexoMB As Integer = 20
+
     ''' <summary>
     ''' Monta e envia um e-mail com anexo opcional.
     ''' </summary>
@@ -60,7 +63,10 @@ Public Class EmailService
         Dim email As New MimeMessage()
         Try
             email.From.Add(New MailboxAddress(String.Empty, remetente))
-            email.To.Add(New MailboxAddress(String.Empty, destinatario))
+            ' Aceita vários destinatários separados por ";" ou ",".
+            For Each end_ In destinatario.Split({";"c, ","c}, StringSplitOptions.RemoveEmptyEntries)
+                email.To.Add(New MailboxAddress(String.Empty, end_.Trim()))
+            Next
         Catch ex As FormatException
             Throw New ArgumentException("Endereço de e-mail inválido: " & ex.Message, ex)
         End Try
@@ -71,6 +77,15 @@ Public Class EmailService
         builder.TextBody = mensagem
 
         If Not String.IsNullOrWhiteSpace(caminhoAnexo) AndAlso File.Exists(caminhoAnexo) Then
+            ' Gmail/Outlook e a maioria dos provedores recusam anexos acima de ~25 MB (e o
+            ' e-mail ainda cresce ~33% na codificação). Falha aqui, com mensagem clara,
+            ' em vez de um erro genérico do servidor depois de minutos de envio.
+            Dim tamanhoMB As Double = New FileInfo(caminhoAnexo).Length / 1048576.0
+            If tamanhoMB > TamanhoMaximoAnexoMB Then
+                Throw New ArgumentException(
+                    $"O arquivo ZIP tem {tamanhoMB:0.0} MB, acima do limite de {TamanhoMaximoAnexoMB} MB aceito pela maioria dos servidores de e-mail. " &
+                    "Exporte um período menor ou uma empresa por vez, ou envie o arquivo por outro meio.")
+            End If
             builder.Attachments.Add(caminhoAnexo)
         End If
 

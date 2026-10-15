@@ -94,8 +94,8 @@ Public Class FrmServidor
 
         Catch ex As Exception
 
-            LogService.RegistrarAtividade($"Testar Conexão: {txtServidor.Text}:{txtPorta.Text}/{txtBanco.Text} -> ERRO: {ex.Message}")
-            MessageBox.Show("Erro ao conectar:" & vbCrLf & ex.Message)
+            LogService.RegistrarAtividade($"Testar Conexão: {txtServidor.Text}:{txtPorta.Text}/{txtBanco.Text} -> ERRO: {ex}")
+            MessageBox.Show("Não foi possível conectar ao banco de dados." & vbCrLf & vbCrLf & ErroAmigavel.Traduzir(ex), "Testar conexão", MessageBoxButtons.OK, MessageBoxIcon.Error)
 
         End Try
 

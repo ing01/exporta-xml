@@ -1,398 +1,144 @@
-﻿Imports System.Reflection.Emit
-Imports Org.BouncyCastle.Asn1.Cmp
-
+''' <summary>
+''' Tela "Configurar E-mail" — lista TODAS as empresas (+ "Global", a
+''' configuração padrão) com um resumo de como cada uma está configurada hoje,
+''' pra deixar claro que a configuração é POR EMPRESA. Selecione uma linha e
+''' clique em "Configurar" (ou dê duplo clique) pra abrir
+''' <see cref="FrmConfiguracaoEmailEmpresa"/> e editar só aquela.
+''' </summary>
+''' <remarks>
+''' Montar a grade abre uma conexão POR BANCO cadastrado — se algum estiver
+''' lento ou inacessível, isso pode demorar (até o timeout padrão do Npgsql
+''' por banco com problema). Por isso a consulta roda em <see cref="Task.Run"/>,
+''' disparada só depois que a janela já apareceu (evento Shown, não Load) —
+''' mesmo padrão de <see cref="FrmPrincipal.FrmPrincipal_Shown"/> — pra nunca
+''' travar a tela enquanto conecta.
+''' </remarks>
 Public Class FrmEmail
-    Private _configuracaoSalva As Configuracoes
-    Private _origemSincronizada As Boolean = False
-    Private _codEmpresaSinc As Integer = 0
+
+    ''' <summary>Uma linha da grade: resumo de como UMA empresa está configurada hoje.</summary>
+    Private Class LinhaResumo
+        Public Property Item As EmpresaItem
+        Public Property NomeExibicao As String
+        Public Property Modo As String
+        Public Property Destinatarios As String
+    End Class
 
     Private Sub FrmEmail_Load(sender As Object, e As EventArgs) Handles MyBase.Load
-        ' Configuração inicial dos radiobuttons
-        rbManual.Checked = True
-        rbSincronizar.Checked = False
+        dgvEmpresasEmail.Enabled = False
+        btnConfigurar.Enabled = False
+        lblExplicacao.Text = "Carregando empresas..."
+    End Sub
 
-        ' Preenche o combobox com empresas
-        CarregarEmpresasNoCombo()
+    Private Async Sub FrmEmail_Shown(sender As Object, e As EventArgs) Handles MyBase.Shown
+        Await AtualizarGradeAsync()
+    End Sub
 
-        ' Carrega configuração salva
+    Private Async Function AtualizarGradeAsync() As Task
+        dgvEmpresasEmail.Enabled = False
+        btnConfigurar.Enabled = False
+        lblExplicacao.Text = "Carregando empresas..."
+
         Dim cfg = ConfiguracaoService.Carregar()
-        _configuracaoSalva = cfg
+        Dim resultado = Await Task.Run(Function() MontarLinhas(cfg))
 
-        ' Preenche campos com o que está salvo
-        txtServidorSMTP.Text = cfg.ServidorSMTP
-        txtPortaSMTP.Text = cfg.PortaSMTP.ToString()
-        txtUsuario.Text = cfg.UsuarioSMTP
-        txtSenha.Text = cfg.SenhaSMTP
-        chkSSL.Checked = cfg.UsarSSL
+        dgvEmpresasEmail.DataSource = Nothing
+        dgvEmpresasEmail.DataSource = resultado.Linhas
 
-        ' Se a origem salva for "Banco", marca o radio correspondente e carrega
-        If cfg.OrigemConfiguracao = "Banco" Then
-            rbSincronizar.Checked = True
-            ' Tenta selecionar a empresa correspondente
-            For Each item As EmpresaItem In cbEmpresaSinc.Items
-                If item.Codigo = cfg.CodEmpresaSincronizada Then
-                    cbEmpresaSinc.SelectedItem = item
-                    Exit For
-                End If
-            Next
-            ' Se não encontrou, seleciona Global (codigo 0)
-            If cbEmpresaSinc.SelectedItem Is Nothing Then
-                For Each item As EmpresaItem In cbEmpresaSinc.Items
-                    If item.Codigo = 0 Then
-                        cbEmpresaSinc.SelectedItem = item
-                        Exit For
-                    End If
-                Next
-            End If
-            CarregarConfiguracaoDoBanco()
+        dgvEmpresasEmail.Enabled = True
+        btnConfigurar.Enabled = True
+
+        If resultado.Erros.Count > 0 Then
+            lblExplicacao.Text = $"Erro ao conectar em: {String.Join("; ", resultado.Erros)}"
         Else
-            rbManual.Checked = True
+            lblExplicacao.Text = "Cada empresa tem sua própria configuração. Selecione uma e clique em Configurar."
         End If
+    End Function
 
-        ' Garantir que combo e painel de destinatários estejam sempre habilitados (permite Global)
-        cbEmpresaSinc.Enabled = True
-        grpDestinatarios.Enabled = True
+    ''' <summary>
+    ''' Só I/O (abrir conexão, consultar, montar as linhas) — de propósito não
+    ''' toca em nenhum controle da tela, pra poder rodar dentro de
+    ''' <see cref="Task.Run"/> com segurança.
+    ''' </summary>
+    Private Function MontarLinhas(cfg As Configuracoes) As (Linhas As List(Of LinhaResumo), Erros As List(Of String))
+        Dim linhas As New List(Of LinhaResumo)
+        Dim erros As New List(Of String)
 
-        lblAlerta.ForeColor = SystemColors.ControlText
-        lblAlerta.Text = "Informe o SMTP do" & vbCrLf & "provedor de e-mail" & vbCrLf & "do cliente."
-        lblStatus.Text = ""
-    End Sub
+        Dim global_ As New EmpresaItem With {.Codigo = 0, .Nome = "Global", .NomeExibicao = "Global (padrão)"}
+        linhas.Add(New LinhaResumo With {
+            .Item = global_,
+            .NomeExibicao = global_.NomeExibicao,
+            .Modo = If(cfg.OrigemConfiguracao = "Banco", "Sincronizado do banco", "Manual"),
+            .Destinatarios = ContarDestinatarios(0, cfg)
+        })
 
-    Private Sub CarregarEmpresasNoCombo()
-        ' Configura exibição
-        cbEmpresaSinc.DisplayMember = "Nome"
-        cbEmpresaSinc.ValueMember = "Codigo"
-
-        ' Limpa e adiciona a opção Global
-        cbEmpresaSinc.Items.Clear()
-        cbEmpresaSinc.Items.Add(New EmpresaItem With {.Codigo = 0, .Nome = "Global"})
-
-        ' Carrega as empresas do banco
-        Dim cfg = ConfiguracaoService.Carregar()
-        If cfg.Conexoes.Count > 0 Then
-            Using conn = Conexao.Abrir(cfg.Conexoes(0).Servidor, cfg.Conexoes(0).Porta,
-                                   cfg.Conexoes(0).Banco, cfg.Conexoes(0).Usuario,
-                                   cfg.Conexoes(0).Senha)
-                Dim empresas = EmpresaService.Listar(conn)
-                For Each emp In empresas
-                    If emp.Codigo <> 0 Then
-                        cbEmpresaSinc.Items.Add(emp)
-                    End If
-                Next
-            End Using
-        End If
-
-        ' Seleciona o primeiro item
-        If cbEmpresaSinc.Items.Count > 0 Then
-            cbEmpresaSinc.SelectedIndex = 0
-        End If
-    End Sub
-
-    Private Sub rbManual_CheckedChanged(sender As Object, e As EventArgs) Handles rbManual.CheckedChanged
-        If rbManual.Checked Then
-            txtServidorSMTP.Enabled = True
-            txtPortaSMTP.Enabled = True
-            txtUsuario.Enabled = True
-            txtSenha.Enabled = True
-            chkSSL.Enabled = True
-            grpDestinatarios.Enabled = True
-            lblStatus.Text = "Modo manual – edite os campos livremente. Use o painel de destinatários para mapear por empresa."
-        End If
-    End Sub
-
-    Private Sub rbSincronizar_CheckedChanged(sender As Object, e As EventArgs) Handles rbSincronizar.CheckedChanged
-        If rbSincronizar.Checked Then
-            txtServidorSMTP.Enabled = False
-            txtPortaSMTP.Enabled = False
-            txtUsuario.Enabled = False
-            txtSenha.Enabled = False
-            chkSSL.Enabled = False
-            grpDestinatarios.Enabled = True
-            CarregarConfiguracaoDoBanco()
-        End If
-    End Sub
-
-    Private Sub cbEmpresaSinc_SelectedIndexChanged(sender As Object, e As EventArgs) Handles cbEmpresaSinc.SelectedIndexChanged
-        ' Sempre carregar a lista de destinatários para a empresa selecionada, independente do modo (Manual/Banco)
-        If cbEmpresaSinc.SelectedItem IsNot Nothing Then
-            Dim item = DirectCast(cbEmpresaSinc.SelectedItem, EmpresaItem)
-            LoadDestinatarios(item.Codigo)
-        End If
-
-        ' Se o usuário escolheu sincronizar do banco, também carregar a configuração SMTP
-        If rbSincronizar.Checked AndAlso cbEmpresaSinc.SelectedItem IsNot Nothing Then
-            CarregarConfiguracaoDoBanco()
-        End If
-    End Sub
-
-    Private Sub CarregarConfiguracaoDoBanco()
-        If cbEmpresaSinc.SelectedItem Is Nothing Then Exit Sub
-
-        Dim item = DirectCast(cbEmpresaSinc.SelectedItem, EmpresaItem)
-        Dim codEmpresa = item.Codigo
-
-        Dim cfg = ConfiguracaoService.Carregar()
-        If cfg.Conexoes.Count = 0 Then
-            MessageBox.Show("Nenhum banco configurado.", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Warning)
-            Exit Sub
-        End If
-
-        Dim conn = Conexao.Abrir(cfg.Conexoes(0).Servidor, cfg.Conexoes(0).Porta,
-                                 cfg.Conexoes(0).Banco, cfg.Conexoes(0).Usuario,
-                                 cfg.Conexoes(0).Senha)
-        Using conn
-            Dim servidor As String = ""
-            Dim porta As Integer = 0
-            Dim usuario As String = ""
-            Dim senha As String = ""
-            Dim usarSSL As Boolean = False
-
-            ' Se Global (código 0) selecionado, não tentar sincronizar — pedir seleção de empresa
-            If codEmpresa = 0 Then
-                ' Não mostra erro; informa para o usuário selecionar uma empresa válida
-                txtServidorSMTP.Clear()
-                txtPortaSMTP.Clear()
-                txtUsuario.Clear()
-                txtSenha.Clear()
-                chkSSL.Checked = False
-                _origemSincronizada = False
-                _codEmpresaSinc = 0
-                lblStatus.Text = "Selecione uma empresa para sincronizar (Global não é válida)."
-                Exit Sub
-            End If
-
-            If ConfiguracaoEmailService.BuscarConfiguracao(conn, codEmpresa, servidor, porta, usuario, senha, usarSSL) Then
-                txtServidorSMTP.Text = If(servidor, String.Empty)
-                txtPortaSMTP.Text = If(porta > 0, porta.ToString(), String.Empty)
-                txtUsuario.Text = If(usuario, String.Empty)
-                ' Mostra placeholder se houver senha, caso contrário vazio
-                txtSenha.Text = If(String.IsNullOrEmpty(senha), String.Empty, "********")
-                chkSSL.Checked = usarSSL
-                _origemSincronizada = True
-                _codEmpresaSinc = codEmpresa
-                lblStatus.Text = "Configuração carregada do banco (Empresa: " & item.Nome & ")"
-                ' Carrega destinatários para esta empresa (do DB e locais) imediatamente
-                LoadDestinatarios(codEmpresa)
-            Else
-                ' Se não encontrou configuração para a empresa, apenas limpa campos sem erro
-                txtServidorSMTP.Clear()
-                txtPortaSMTP.Clear()
-                txtUsuario.Clear()
-                txtSenha.Clear()
-                chkSSL.Checked = False
-                _origemSincronizada = False
-                lblStatus.Text = "Nenhuma configuração encontrada para esta empresa."
-                ' Mesmo sem configuração no DB, carregar destinatários locais se houver
-                LoadDestinatarios(codEmpresa)
-            End If
-        End Using
-    End Sub
-
-    Private Sub btnSalvar_Click(sender As Object, e As EventArgs) Handles btnSalvar.Click
-        Try
-            Dim cfg = ConfiguracaoService.Carregar()
-
-            If rbManual.Checked Then
-                cfg.ServidorSMTP = txtServidorSMTP.Text.Trim()
-                Dim portaValor As Integer = 0
-                If Integer.TryParse(txtPortaSMTP.Text, portaValor) Then
-                    cfg.PortaSMTP = portaValor
-                Else
-                    cfg.PortaSMTP = 0
-                End If
-                cfg.UsuarioSMTP = txtUsuario.Text.Trim()
-                cfg.SenhaSMTP = txtSenha.Text
-                cfg.EmailRemetente = txtUsuario.Text.Trim()
-                cfg.UsarSSL = chkSSL.Checked
-                cfg.OrigemConfiguracao = "Manual"
-                cfg.CodEmpresaSincronizada = 0
-                _origemSincronizada = False
-            ElseIf rbSincronizar.Checked Then
-                cfg.OrigemConfiguracao = "Banco"
-                cfg.CodEmpresaSincronizada = _codEmpresaSinc
-                ' Não salvamos a senha do banco; salvamos os outros campos apenas para exibição futura
-                cfg.ServidorSMTP = txtServidorSMTP.Text.Trim()
-                Dim portaValor As Integer = 0
-                If Integer.TryParse(txtPortaSMTP.Text, portaValor) Then
-                    cfg.PortaSMTP = portaValor
-                Else
-                    cfg.PortaSMTP = 0
-                End If
-                cfg.UsuarioSMTP = txtUsuario.Text.Trim()
-                cfg.SenhaSMTP = ""   ' não guarda senha
-                cfg.UsarSSL = chkSSL.Checked
-                cfg.EmailRemetente = txtUsuario.Text.Trim()
-            End If
-
-            ConfiguracaoService.Salvar(cfg)
-            LogService.RegistrarAtividade($"E-mail salvo: Origem={cfg.OrigemConfiguracao}, EmpresaSinc={cfg.CodEmpresaSincronizada}")
-            MessageBox.Show("Configuração salva com sucesso!")
-            Me.Close()
-
-        Catch ex As Exception
-            MessageBox.Show(ex.Message)
-        End Try
-    End Sub
-
-    Private Sub btnTestarEnvio_Click(sender As Object, e As EventArgs) Handles btnTestarEnvio.Click
-        Try
-            ' Para testar, usamos os valores atuais da tela (já que o usuário pode ter editado)
-            ' Se estiver sincronizado, as credenciais foram carregadas (mas a senha está oculta).
-            ' Precisamos pegar a senha real do banco novamente se a origem for "Banco".
-            Dim servidor As String = txtServidorSMTP.Text.Trim()
-            Dim porta As Integer
-            If Not Integer.TryParse(txtPortaSMTP.Text, porta) Then
-                MessageBox.Show("Porta inválida.")
-                Exit Sub
-            End If
-            Dim usuario As String = txtUsuario.Text.Trim()
-            Dim senha As String = txtSenha.Text
-            Dim usarSSL As Boolean = chkSSL.Checked
-
-            ' Se a origem for sincronizada, a senha mostrada é "********", então precisamos buscar do banco.
-            If rbSincronizar.Checked AndAlso _origemSincronizada Then
-                ' Busca novamente do banco para obter a senha real
-                Dim cfg = ConfiguracaoService.Carregar()
-                If cfg.Conexoes.Count > 0 Then
-                    Dim conn = Conexao.Abrir(cfg.Conexoes(0).Servidor, cfg.Conexoes(0).Porta,
-                                             cfg.Conexoes(0).Banco, cfg.Conexoes(0).Usuario,
-                                             cfg.Conexoes(0).Senha)
-                    Using conn
-                        Dim servidorB As String = "", usuarioB As String = "", senhaB As String = ""
-                        Dim portaB As Integer = 0, sslB As Boolean = False
-                        If ConfiguracaoEmailService.BuscarConfiguracao(conn, _codEmpresaSinc, servidorB, portaB, usuarioB, senhaB, sslB) Then
-                            senha = senhaB
-                            ' Atualiza também os demais campos, caso tenham mudado
-                            servidor = servidorB
-                            porta = portaB
-                            usuario = usuarioB
-                            usarSSL = sslB
-                        Else
-                            MessageBox.Show("Não foi possível obter a senha do banco para o teste.", "Erro", MessageBoxButtons.OK, MessageBoxIcon.Error)
-                            Exit Sub
-                        End If
-                    End Using
-                Else
-                    MessageBox.Show("Nenhum banco configurado.", "Erro", MessageBoxButtons.OK, MessageBoxIcon.Error)
-                    Exit Sub
-                End If
-            End If
-
-            ' Validações básicas
-            If String.IsNullOrWhiteSpace(servidor) Then Throw New Exception("Servidor SMTP não informado.")
-            If String.IsNullOrWhiteSpace(usuario) Then Throw New Exception("Usuário SMTP não informado.")
-            If String.IsNullOrWhiteSpace(senha) Then Throw New Exception("Senha SMTP não informada.")
-
-            Dim destinatario As String = InputBox("Informe o e-mail que receberá o teste:", "Teste de Envio")
-            If String.IsNullOrWhiteSpace(destinatario) Then Exit Sub
+        For Each banco As ConexaoBanco In cfg.Conexoes
             Try
-                Dim addr = New System.Net.Mail.MailAddress(destinatario)
-            Catch
-                MessageBox.Show("E-mail destinatário inválido.")
-                Exit Sub
-            End Try
+                Using conn = Conexao.Abrir(banco.Servidor, banco.Porta, banco.Banco, banco.Usuario, banco.Senha)
+                    Dim empresas = EmpresaService.Listar(conn).Where(Function(emp) emp.Codigo <> 0).ToList()
+                    For Each emp In empresas
+                        emp.Conexao = banco
+                        emp.NomeExibicao = If(cfg.Conexoes.Count > 1, $"{emp.Nome} ({banco.Nome})", emp.Nome)
 
-            MessageBox.Show(senha)
+                        Dim override = cfg.ConfiguracoesEmailPorEmpresa?.FirstOrDefault(Function(c) c.CodigoEmpresa = emp.Codigo)
+                        Dim modo As String =
+                            If(override Is Nothing OrElse override.Origem = "Padrao", "Padrão (Global)",
+                            If(override.Origem = "Banco", "Sincronizado do banco", "Manual"))
 
-            EmailService.Testar(servidor, porta, usuario, senha, usuario, destinatario, usarSSL)
-            LogService.RegistrarAtividade($"Teste de e-mail enviado para {destinatario} com sucesso.")
-            MessageBox.Show("E-mail enviado com sucesso!")
-
-        Catch ex As Exception
-            LogService.RegistrarAtividade($"Erro no teste de e-mail: {ex.Message}")
-            MessageBox.Show("Erro ao enviar e-mail: " & ex.Message, "Erro", MessageBoxButtons.OK, MessageBoxIcon.Error)
-        End Try
-    End Sub
-
-    Private Sub LoadDestinatarios(codigoEmpresa As Integer)
-        lbDestinatarios.Items.Clear()
-        Dim cfg = ConfiguracaoService.Carregar()
-        Try
-            If cfg.Conexoes.Count > 0 Then
-                Using conn = Conexao.Abrir(cfg.Conexoes(0).Servidor, cfg.Conexoes(0).Porta, cfg.Conexoes(0).Banco, cfg.Conexoes(0).Usuario, cfg.Conexoes(0).Senha)
-                    Try
-                        ' Lista do DB para o código informado (0 = global entries no DB, se existirem)
-                        Dim lista = DestinatarioService.ListarPorEmpresa(conn, codigoEmpresa)
-                        For Each d In lista
-                            lbDestinatarios.Items.Add(d)
-                        Next
-                    Catch ex As Exception
-                        LogService.RegistrarAtividade($"Erro ao carregar destinatários do banco: {ex.Message}")
-                    End Try
+                        linhas.Add(New LinhaResumo With {
+                            .Item = emp,
+                            .NomeExibicao = emp.NomeExibicao,
+                            .Modo = modo,
+                            .Destinatarios = ContarDestinatarios(emp.Codigo, cfg)
+                        })
+                    Next
                 End Using
-            End If
-        Catch ex As Exception
-            LogService.RegistrarAtividade($"Erro ao carregar destinatários: {ex.Message}")
-        End Try
+            Catch ex As Exception
+                LogService.RegistrarAtividade($"Erro ao carregar empresas do banco {banco.Nome}: {ex}")
+                erros.Add($"{banco.Nome} ({ErroAmigavel.Traduzir(ex)})")
+            End Try
+        Next
 
-        ' Adicionar os locais do config.json (se houver) — inclui entries com CodigoEmpresa = 0 (Global)
-        Dim locais = cfg.DestinatariosLocais
-        If locais IsNot Nothing Then
-            For Each d In locais.Where(Function(x) x.CodigoEmpresa = codigoEmpresa AndAlso x.Ativo = True)
-                If Not lbDestinatarios.Items.Contains(d.Email) Then lbDestinatarios.Items.Add(d.Email)
-            Next
+        Return (linhas, erros)
+    End Function
+
+    ''' <summary>Só conta os destinatários locais (config.json) — os do banco exigiriam abrir uma conexão por linha, custo desnecessário só pra listar.</summary>
+    Private Function ContarDestinatarios(codigoEmpresa As Integer, cfg As Configuracoes) As String
+        Dim qtd = cfg.DestinatariosLocais?.Where(Function(d) d.CodigoEmpresa = codigoEmpresa AndAlso d.Ativo).Count()
+        If qtd Is Nothing OrElse qtd = 0 Then Return "(nenhum)"
+        Return $"{qtd} cadastrado(s)"
+    End Function
+
+    Private Function ItemSelecionado() As EmpresaItem
+        If dgvEmpresasEmail.CurrentRow Is Nothing Then Return Nothing
+        Dim linha = TryCast(dgvEmpresasEmail.CurrentRow.DataBoundItem, LinhaResumo)
+        Return linha?.Item
+    End Function
+
+    Private Async Sub AbrirConfiguracao()
+        Dim item = ItemSelecionado()
+        If item Is Nothing Then
+            MessageBox.Show("Selecione uma empresa para configurar.", "Configurar E-mail", MessageBoxButtons.OK, MessageBoxIcon.Information)
+            Return
+        End If
+
+        Dim frm As New FrmConfiguracaoEmailEmpresa(item)
+        frm.ShowDialog(Me)
+
+        If frm.Salvo Then
+            Await AtualizarGradeAsync()
         End If
     End Sub
 
-    Private Sub btnAddDest_Click(sender As Object, e As EventArgs) Handles btnAddDest.Click
-        If cbEmpresaSinc.SelectedItem Is Nothing Then
-            MessageBox.Show("Selecione uma empresa antes de adicionar destinatários.")
-            Exit Sub
-        End If
-        Dim item = DirectCast(cbEmpresaSinc.SelectedItem, EmpresaItem)
-
-        Dim email = InputBox("Informe o e-mail do destinatário:", "Adicionar Destinatário")
-        If String.IsNullOrWhiteSpace(email) Then Exit Sub
-        Dim descricao = InputBox("Descrição (opcional):", "Adicionar Destinatário")
-        ' Salva localmente em config.json (sem permissão de escrita no banco)
-        Dim locaisCfg = ConfiguracaoService.Carregar()
-        If locaisCfg.DestinatariosLocais Is Nothing Then locaisCfg.DestinatariosLocais = New List(Of DestinatarioLocal)()
-        locaisCfg.DestinatariosLocais.Add(New DestinatarioLocal With {.CodigoEmpresa = item.Codigo, .Email = email.Trim(), .Descricao = descricao, .Ativo = True})
-        ConfiguracaoService.Salvar(locaisCfg)
-        LoadDestinatarios(item.Codigo)
+    Private Sub btnConfigurar_Click(sender As Object, e As EventArgs) Handles btnConfigurar.Click
+        AbrirConfiguracao()
     End Sub
 
-    Private Sub btnEditDest_Click(sender As Object, e As EventArgs) Handles btnEditDest.Click
-        If lbDestinatarios.SelectedItem Is Nothing Then
-            MessageBox.Show("Selecione um destinatário para editar.")
-            Exit Sub
-        End If
-        Dim oldEmail = lbDestinatarios.SelectedItem.ToString()
-        Dim newEmail = InputBox("Editar e-mail:", "Editar Destinatário", oldEmail)
-        If String.IsNullOrWhiteSpace(newEmail) Then Exit Sub
-        ' Simplificação: remover o antigo e inserir o novo (não tracking de id)
-        Dim item = DirectCast(cbEmpresaSinc.SelectedItem, EmpresaItem)
-        ' Edição simplificada: remove local e insere novo nos locais (não tenta alterar o DB)
-        Dim locaisCfg = ConfiguracaoService.Carregar()
-        If locaisCfg.DestinatariosLocais Is Nothing Then locaisCfg.DestinatariosLocais = New List(Of DestinatarioLocal)()
-        ' Remove local com oldEmail e mesma empresa
-        locaisCfg.DestinatariosLocais.RemoveAll(Function(d) d.CodigoEmpresa = item.Codigo AndAlso d.Email = oldEmail)
-        locaisCfg.DestinatariosLocais.Add(New DestinatarioLocal With {.CodigoEmpresa = item.Codigo, .Email = newEmail.Trim(), .Descricao = String.Empty, .Ativo = True})
-        ConfiguracaoService.Salvar(locaisCfg)
-        LoadDestinatarios(item.Codigo)
+    Private Sub dgvEmpresasEmail_CellDoubleClick(sender As Object, e As DataGridViewCellEventArgs) Handles dgvEmpresasEmail.CellDoubleClick
+        If e.RowIndex >= 0 Then AbrirConfiguracao()
     End Sub
 
-    Private Sub btnRemoveDest_Click(sender As Object, e As EventArgs) Handles btnRemoveDest.Click
-        If lbDestinatarios.SelectedItem Is Nothing Then
-            MessageBox.Show("Selecione um destinatário para remover.")
-            Exit Sub
-        End If
-        If MessageBox.Show("Confirmar remoção do destinatário selecionado?", "Confirmar", MessageBoxButtons.YesNo, MessageBoxIcon.Question) <> DialogResult.Yes Then
-            Exit Sub
-        End If
-        Dim email = lbDestinatarios.SelectedItem.ToString()
-        Dim item = DirectCast(cbEmpresaSinc.SelectedItem, EmpresaItem)
-        Dim cfg = ConfiguracaoService.Carregar()
-        If cfg.Conexoes.Count = 0 Then
-            MessageBox.Show("Nenhum banco configurado.")
-            Exit Sub
-        End If
-        ' Remove local mapping apenas
-        Dim locaisCfg = ConfiguracaoService.Carregar()
-        If locaisCfg.DestinatariosLocais Is Nothing Then locaisCfg.DestinatariosLocais = New List(Of DestinatarioLocal)()
-        locaisCfg.DestinatariosLocais.RemoveAll(Function(d) d.CodigoEmpresa = item.Codigo AndAlso d.Email = email)
-        ConfiguracaoService.Salvar(locaisCfg)
-        LoadDestinatarios(item.Codigo)
+    Private Sub btnFechar_Click(sender As Object, e As EventArgs) Handles btnFechar.Click
+        Me.Close()
     End Sub
 
 End Class

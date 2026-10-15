@@ -1,3 +1,4 @@
+Imports System.IO
 Imports Microsoft.Extensions.Hosting
 
 ''' <summary>
@@ -43,7 +44,9 @@ Public Class AgendamentoWorker
             If Not AgendamentoService.DeveExecutar(cfg) Then Return
 
             AgendamentoService.ExecutarAgendamentoMensal(cfg)
-        Catch
+        Catch ex As Exception
+            ' Antes isto era engolido sem rastro e ninguém descobria que o serviço nem tentava rodar.
+            ErroAmigavel.Registrar(Path.Combine(LogService.PastaLogs, "Servico.log"), "ERRO na checagem do agendamento", ex)
         End Try
     End Sub
 

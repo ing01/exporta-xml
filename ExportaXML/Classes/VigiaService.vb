@@ -1,22 +1,18 @@
 Imports System.Diagnostics
 
 ''' <summary>
-''' "Vigia" que mantém o ExportaXML sempre em execução: registra uma tarefa no
-''' Agendador de Tarefas do Windows que tenta abrir o programa a cada poucos
-''' minutos. Não é um serviço do Windows (Session 0 não permite ícone de
-''' bandeja/janela) — é um atalho pra chegar num resultado parecido: se o
-''' programa já estiver aberto, a tentativa não faz nada (ver
-''' <see cref="InstanciaUnica"/>, que detecta a instância já em execução e
-''' sai sem abrir nada); se tiver sido fechado por engano, travado, ou a
-''' máquina reiniciado, essa mesma tentativa efetivamente reabre o programa.
+''' "Vigia" — recurso DESCONTINUADO ("Manter sempre em execução") que registrava
+''' uma tarefa no Agendador de Tarefas do Windows para reabrir o programa a
+''' cada poucos minutos. Removido porque trazia a janela pra frente com
+''' frequência incômoda para quem preferia deixar o programa minimizado na
+''' bandeja. Esta classe continua existindo só para <see cref="Desativar"/> a
+''' tarefa em instalações antigas que já tinham o recurso ativado (ver
+''' <see cref="FrmPrincipal.FrmPrincipal_Shown"/>).
 ''' </summary>
 Public Class VigiaService
 
-    ''' <summary>Nome da tarefa no Agendador — usado tanto para criar quanto pra checar/remover.</summary>
+    ''' <summary>Nome da tarefa no Agendador — usado tanto para checar quanto pra remover.</summary>
     Private Const NomeTarefa As String = "ExportaXML_ManterAtivo"
-
-    ''' <summary>Intervalo, em minutos, entre cada tentativa do Agendador de reabrir o programa.</summary>
-    Private Const IntervaloMinutos As Integer = 5
 
     ''' <summary>
     ''' Roda o schtasks.exe com os argumentos informados e devolve
@@ -44,23 +40,6 @@ Public Class VigiaService
         Dim resultado = RodarSchtasks($"/Query /TN ""{NomeTarefa}""")
         Return resultado.CodigoSaida = 0
     End Function
-
-    ''' <summary>
-    ''' Cadastra (ou substitui, se já existir com um caminho antigo) a tarefa
-    ''' que tenta abrir o ExportaXML a cada <see cref="IntervaloMinutos"/> minutos,
-    ''' pra sempre, sem data de término.
-    ''' </summary>
-    Public Shared Sub Ativar()
-        Dim caminhoExe As String = Application.ExecutablePath
-        Dim argumentos As String =
-            $"/Create /TN ""{NomeTarefa}"" /TR ""\""{caminhoExe}\"""" /SC MINUTE /MO {IntervaloMinutos} /F"
-
-        Dim resultado = RodarSchtasks(argumentos)
-
-        If resultado.CodigoSaida <> 0 Then
-            Throw New InvalidOperationException($"schtasks retornou erro ({resultado.CodigoSaida}): {resultado.Saida.Trim()}")
-        End If
-    End Sub
 
     ''' <summary>Remove a tarefa do Vigia. Não é erro chamar isso quando ela já não existe.</summary>
     Public Shared Sub Desativar()

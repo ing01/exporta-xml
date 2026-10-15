@@ -67,7 +67,7 @@ Public Class FrmRestore
                 lblStatus.Text = $"{lbReleases.Items.Count} versões encontradas"
             End If
         Catch ex As Exception
-            lblStatus.Text = "Falha ao listar versões: " & ex.Message
+            lblStatus.Text = "Falha ao listar versões: " & ErroAmigavel.Traduzir(ex)
         End Try
     End Function
 
@@ -132,7 +132,7 @@ Public Class FrmRestore
                         File.Copy(srcPath, destPath, True)
                     Next
                 Catch ex As Exception
-                    Throw New Exception("Falha ao copiar arquivos: " & ex.Message)
+                    Throw New IOException("Falha ao copiar os arquivos da versão restaurada.", ex)
                 End Try
 
                 ' Reiniciar serviço se foi parado
@@ -149,8 +149,8 @@ Public Class FrmRestore
                 MessageBox.Show("Restauração concluída.", "Sucesso", MessageBoxButtons.OK, MessageBoxIcon.Information)
             End Using
         Catch ex As Exception
-            lblStatus.Text = "Erro: " & ex.Message
-            MessageBox.Show("Falha ao restaurar versão: " & ex.Message, "Erro", MessageBoxButtons.OK, MessageBoxIcon.Error)
+            lblStatus.Text = "Erro: " & ErroAmigavel.Traduzir(ex)
+            MessageBox.Show("Não foi possível restaurar a versão." & vbCrLf & vbCrLf & ErroAmigavel.Traduzir(ex), "Erro", MessageBoxButtons.OK, MessageBoxIcon.Error)
         End Try
     End Sub
 End Class

@@ -35,6 +35,7 @@ Partial Class FrmPrincipal
         txbFim = New TextBox()
         lblSerieFiltro = New Label()
         txbSerie = New TextBox()
+        chkAgruparPorSerie = New CheckBox()
         GroupBox3 = New GroupBox()
         lblStatusFiltro = New Label()
         chkTodos = New CheckBox()
@@ -50,6 +51,12 @@ Partial Class FrmPrincipal
         lblDirecao = New Label()
         rbSaida = New RadioButton()
         rbEntrada = New RadioButton()
+        grpTipoEntrada = New GroupBox()
+        rbComprasPropias = New RadioButton()
+        rbDevolucoesVenda = New RadioButton()
+        rbComprasFornecedores = New RadioButton()
+        rbTodosEntrada = New RadioButton()
+        lblAvisoEntrada = New Label()
         lblEmpresaFiltro = New Label()
         cboEmpresa = New ComboBox()
         lblPeriodo = New Label()
@@ -62,13 +69,14 @@ Partial Class FrmPrincipal
         lblDestino = New Label()
         txtDestino = New TextBox()
         btnDestino = New Button()
-        btnPesquisar = New Button()
         lblQtd = New Label()
+        btnPesquisar = New Button()
         lblStatus = New Label()
         lblQuantidade = New Label()
         pbExportacao = New ProgressBar()
         btnExportar = New Button()
         dgvCupons = New DataGridView()
+        lblAvisoSemXml = New Label()
         Modelo = New DataGridViewTextBoxColumn()
         Documento = New DataGridViewTextBoxColumn()
         Codigo = New DataGridViewTextBoxColumn()
@@ -82,6 +90,10 @@ Partial Class FrmPrincipal
         lbServidor = New Label()
         lbServ = New Label()
         btnConfigurarServidor = New Button()
+        lblVersao = New Label()
+        btnAjuda = New Button()
+        btnVerLog = New Button()
+        btnVerificarAtualizacao = New Button()
         grpEmail = New GroupBox()
         Label2 = New Label()
         btnConfigurarEmail = New Button()
@@ -90,7 +102,6 @@ Partial Class FrmPrincipal
         lblHoraAgendamento = New Label()
         dtpHoraAgendamento = New DateTimePicker()
         chkIniciarComWindows = New CheckBox()
-        chkManterSempreAtivo = New CheckBox()
         chkDiaFixo = New CheckBox()
         lblDiaPersonalizado = New Label()
         nudDiaAgendamento = New NumericUpDown()
@@ -100,9 +111,6 @@ Partial Class FrmPrincipal
         btnRestaurarVersao = New Button()
         Label10 = New Label()
         FolderBrowserDialog1 = New FolderBrowserDialog()
-        lblVersao = New Label()
-        btnVerificarAtualizacao = New Button()
-        btnAjuda = New Button()
         tmrAtualizacao = New Timer(components)
         tmrAgendamento = New Timer(components)
         notifyIcon1 = New NotifyIcon(components)
@@ -116,6 +124,7 @@ Partial Class FrmPrincipal
         GroupBox3.SuspendLayout()
         GroupBox2.SuspendLayout()
         GroupBox1.SuspendLayout()
+        grpTipoEntrada.SuspendLayout()
         grpAcao.SuspendLayout()
         CType(dgvCupons, ComponentModel.ISupportInitialize).BeginInit()
         tabConfiguracoes.SuspendLayout()
@@ -141,11 +150,14 @@ Partial Class FrmPrincipal
         tabExportar.Controls.Add(Label1)
         tabExportar.Controls.Add(grpFiltros)
         tabExportar.Controls.Add(grpAcao)
+        tabExportar.Controls.Add(lblQtd)
+        tabExportar.Controls.Add(btnPesquisar)
         tabExportar.Controls.Add(lblStatus)
         tabExportar.Controls.Add(lblQuantidade)
         tabExportar.Controls.Add(pbExportacao)
         tabExportar.Controls.Add(btnExportar)
         tabExportar.Controls.Add(dgvCupons)
+        tabExportar.Controls.Add(lblAvisoSemXml)
         tabExportar.Location = New Point(4, 24)
         tabExportar.Name = "tabExportar"
         tabExportar.Padding = New Padding(3)
@@ -157,7 +169,7 @@ Partial Class FrmPrincipal
         ' Label1
         ' 
         Label1.AutoSize = True
-        Label1.Font = New Font("Arial", 11.0F, FontStyle.Bold, GraphicsUnit.Point, CByte(0))
+        Label1.Font = New Font("Arial", 11F, FontStyle.Bold, GraphicsUnit.Point, CByte(0))
         Label1.Location = New Point(101, 367)
         Label1.Name = "Label1"
         Label1.Size = New Size(86, 18)
@@ -170,6 +182,8 @@ Partial Class FrmPrincipal
         grpFiltros.Controls.Add(GroupBox3)
         grpFiltros.Controls.Add(GroupBox2)
         grpFiltros.Controls.Add(GroupBox1)
+        grpFiltros.Controls.Add(grpTipoEntrada)
+        grpFiltros.Controls.Add(lblAvisoEntrada)
         grpFiltros.Controls.Add(lblEmpresaFiltro)
         grpFiltros.Controls.Add(cboEmpresa)
         grpFiltros.Controls.Add(lblPeriodo)
@@ -178,6 +192,7 @@ Partial Class FrmPrincipal
         grpFiltros.Controls.Add(dtFim)
         grpFiltros.Controls.Add(lblFornecedor)
         grpFiltros.Controls.Add(cboFornecedor)
+        grpFiltros.Controls.Add(chkAgruparPorSerie)
         grpFiltros.ForeColor = Color.FromArgb(CByte(51), CByte(51), CByte(51))
         grpFiltros.Location = New Point(8, 8)
         grpFiltros.Name = "grpFiltros"
@@ -247,7 +262,17 @@ Partial Class FrmPrincipal
         txbSerie.Name = "txbSerie"
         txbSerie.Size = New Size(45, 21)
         txbSerie.TabIndex = 20
-        ' 
+        '
+        ' chkAgruparPorSerie
+        '
+        chkAgruparPorSerie.AutoSize = True
+        chkAgruparPorSerie.Location = New Point(315, 172)
+        chkAgruparPorSerie.Name = "chkAgruparPorSerie"
+        chkAgruparPorSerie.Size = New Size(275, 19)
+        chkAgruparPorSerie.TabIndex = 21
+        chkAgruparPorSerie.Text = "Exportar por série (zip separado por série)"
+        chkAgruparPorSerie.UseVisualStyleBackColor = True
+        '
         ' GroupBox3
         ' 
         GroupBox3.Controls.Add(lblStatusFiltro)
@@ -405,6 +430,71 @@ Partial Class FrmPrincipal
         rbEntrada.Text = "Entrada"
         rbEntrada.UseVisualStyleBackColor = True
         ' 
+        ' grpTipoEntrada
+        ' 
+        grpTipoEntrada.Controls.Add(rbComprasPropias)
+        grpTipoEntrada.Controls.Add(rbDevolucoesVenda)
+        grpTipoEntrada.Controls.Add(rbComprasFornecedores)
+        grpTipoEntrada.Controls.Add(rbTodosEntrada)
+        grpTipoEntrada.Location = New Point(4, 95)
+        grpTipoEntrada.Name = "grpTipoEntrada"
+        grpTipoEntrada.Size = New Size(585, 58)
+        grpTipoEntrada.TabIndex = 29
+        grpTipoEntrada.TabStop = False
+        grpTipoEntrada.Text = "Tipo de Nota (Entrada)"
+        grpTipoEntrada.Visible = False
+        '
+        ' rbComprasPropias
+        '
+        rbComprasPropias.AutoSize = True
+        rbComprasPropias.Location = New Point(10, 25)
+        rbComprasPropias.Name = "rbComprasPropias"
+        rbComprasPropias.Size = New Size(127, 19)
+        rbComprasPropias.TabIndex = 0
+        rbComprasPropias.Text = "Compras Próprias"
+        rbComprasPropias.UseVisualStyleBackColor = True
+        '
+        ' rbDevolucoesVenda
+        '
+        rbDevolucoesVenda.AutoSize = True
+        rbDevolucoesVenda.Location = New Point(145, 25)
+        rbDevolucoesVenda.Name = "rbDevolucoesVenda"
+        rbDevolucoesVenda.Size = New Size(144, 19)
+        rbDevolucoesVenda.TabIndex = 1
+        rbDevolucoesVenda.Text = "Devoluções de Venda"
+        rbDevolucoesVenda.UseVisualStyleBackColor = True
+        '
+        ' rbComprasFornecedores
+        '
+        rbComprasFornecedores.AutoSize = True
+        rbComprasFornecedores.Location = New Point(297, 25)
+        rbComprasFornecedores.Name = "rbComprasFornecedores"
+        rbComprasFornecedores.Size = New Size(102, 19)
+        rbComprasFornecedores.TabIndex = 2
+        rbComprasFornecedores.Text = "Fornecedores"
+        rbComprasFornecedores.UseVisualStyleBackColor = True
+        '
+        ' rbTodosEntrada
+        '
+        rbTodosEntrada.AutoSize = True
+        rbTodosEntrada.Location = New Point(407, 25)
+        rbTodosEntrada.Name = "rbTodosEntrada"
+        rbTodosEntrada.Size = New Size(58, 19)
+        rbTodosEntrada.TabIndex = 3
+        rbTodosEntrada.TabStop = True
+        rbTodosEntrada.Text = "Todos"
+        rbTodosEntrada.UseVisualStyleBackColor = True
+        '
+        ' lblAvisoEntrada
+        '
+        lblAvisoEntrada.ForeColor = SystemColors.GrayText
+        lblAvisoEntrada.Location = New Point(4, 161)
+        lblAvisoEntrada.Name = "lblAvisoEntrada"
+        lblAvisoEntrada.Size = New Size(585, 40)
+        lblAvisoEntrada.TabIndex = 30
+        lblAvisoEntrada.Text = "Compras próprias e devoluções são sempre exportáveis. Fornecedores só a partir de notas do DS Estoque 4.8.239+ — anteriores não têm XML e aparecem destacadas na grade."
+        lblAvisoEntrada.Visible = False
+        ' 
         ' lblEmpresaFiltro
         ' 
         lblEmpresaFiltro.AutoSize = True
@@ -480,12 +570,10 @@ Partial Class FrmPrincipal
         grpAcao.Controls.Add(lblDestino)
         grpAcao.Controls.Add(txtDestino)
         grpAcao.Controls.Add(btnDestino)
-        grpAcao.Controls.Add(btnPesquisar)
-        grpAcao.Controls.Add(lblQtd)
         grpAcao.ForeColor = Color.FromArgb(CByte(51), CByte(51), CByte(51))
         grpAcao.Location = New Point(8, 213)
         grpAcao.Name = "grpAcao"
-        grpAcao.Size = New Size(600, 96)
+        grpAcao.Size = New Size(600, 45)
         grpAcao.TabIndex = 1
         grpAcao.TabStop = False
         ' 
@@ -509,7 +597,7 @@ Partial Class FrmPrincipal
         ' 
         btnDestino.BackColor = Color.Gold
         btnDestino.FlatStyle = FlatStyle.Flat
-        btnDestino.Font = New Font("Arial", 9.0F, FontStyle.Bold, GraphicsUnit.Point, CByte(0))
+        btnDestino.Font = New Font("Arial", 9F, FontStyle.Bold, GraphicsUnit.Point, CByte(0))
         btnDestino.ForeColor = Color.Black
         btnDestino.Location = New Point(438, 13)
         btnDestino.Name = "btnDestino"
@@ -518,31 +606,31 @@ Partial Class FrmPrincipal
         btnDestino.Text = "Selecionar Pasta"
         btnDestino.UseVisualStyleBackColor = False
         ' 
+        ' lblQtd
+        ' 
+        lblQtd.AutoSize = True
+        lblQtd.Font = New Font("Arial", 11F, FontStyle.Bold, GraphicsUnit.Point, CByte(0))
+        lblQtd.Location = New Point(194, 278)
+        lblQtd.Name = "lblQtd"
+        lblQtd.Size = New Size(55, 18)
+        lblQtd.TabIndex = 4
+        lblQtd.Text = "Quant."
+        ' 
         ' btnPesquisar
         ' 
-        btnPesquisar.Font = New Font("Arial", 9.0F, FontStyle.Bold, GraphicsUnit.Point, CByte(0))
-        btnPesquisar.Location = New Point(11, 41)
+        btnPesquisar.Font = New Font("Arial", 9F, FontStyle.Bold, GraphicsUnit.Point, CByte(0))
+        btnPesquisar.Location = New Point(8, 271)
         btnPesquisar.Name = "btnPesquisar"
         btnPesquisar.Size = New Size(180, 32)
         btnPesquisar.TabIndex = 3
         btnPesquisar.Text = "Pesquisar"
         btnPesquisar.UseVisualStyleBackColor = True
         ' 
-        ' lblQtd
-        ' 
-        lblQtd.AutoSize = True
-        lblQtd.Font = New Font("Arial", 11.0F, FontStyle.Bold, GraphicsUnit.Point, CByte(0))
-        lblQtd.Location = New Point(197, 48)
-        lblQtd.Name = "lblQtd"
-        lblQtd.Size = New Size(55, 18)
-        lblQtd.TabIndex = 4
-        lblQtd.Text = "Quant."
-        ' 
         ' lblStatus
         ' 
         lblStatus.AutoSize = True
-        lblStatus.Font = New Font("Arial", 11.0F, FontStyle.Bold, GraphicsUnit.Point, CByte(0))
-        lblStatus.Location = New Point(193, 388)
+        lblStatus.Font = New Font("Arial", 11F, FontStyle.Bold, GraphicsUnit.Point, CByte(0))
+        lblStatus.Location = New Point(101, 388)
         lblStatus.Name = "lblStatus"
         lblStatus.Size = New Size(53, 18)
         lblStatus.TabIndex = 2
@@ -551,7 +639,7 @@ Partial Class FrmPrincipal
         ' lblQuantidade
         ' 
         lblQuantidade.AutoSize = True
-        lblQuantidade.Font = New Font("Arial", 11.0F, FontStyle.Bold, GraphicsUnit.Point, CByte(0))
+        lblQuantidade.Font = New Font("Arial", 11F, FontStyle.Bold, GraphicsUnit.Point, CByte(0))
         lblQuantidade.Location = New Point(444, 367)
         lblQuantidade.Name = "lblQuantidade"
         lblQuantidade.Size = New Size(55, 18)
@@ -569,7 +657,7 @@ Partial Class FrmPrincipal
         ' 
         btnExportar.BackColor = Color.ForestGreen
         btnExportar.FlatStyle = FlatStyle.Flat
-        btnExportar.Font = New Font("Arial", 13.0F, FontStyle.Bold, GraphicsUnit.Point, CByte(0))
+        btnExportar.Font = New Font("Arial", 13F, FontStyle.Bold, GraphicsUnit.Point, CByte(0))
         btnExportar.ForeColor = Color.Honeydew
         btnExportar.Location = New Point(193, 315)
         btnExportar.Name = "btnExportar"
@@ -588,13 +676,25 @@ Partial Class FrmPrincipal
         dgvCupons.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.AutoSize
         dgvCupons.Columns.AddRange(New DataGridViewColumn() {Modelo, Documento, Codigo, Fornecedor, Serie, Chave, Status, Data})
         dgvCupons.GridColor = SystemColors.ActiveCaptionText
-        dgvCupons.Location = New Point(8, 412)
+        dgvCupons.Location = New Point(3, 409)
         dgvCupons.Name = "dgvCupons"
         dgvCupons.ReadOnly = True
         dgvCupons.SelectionMode = DataGridViewSelectionMode.FullRowSelect
-        dgvCupons.Size = New Size(600, 249)
+        dgvCupons.Size = New Size(600, 227)
         dgvCupons.TabIndex = 5
-        ' 
+        '
+        ' lblAvisoSemXml
+        '
+        lblAvisoSemXml.AutoSize = False
+        lblAvisoSemXml.Font = New Font("Arial", 8F, FontStyle.Bold, GraphicsUnit.Point, CByte(0))
+        lblAvisoSemXml.ForeColor = Color.FromArgb(153, 76, 0)
+        lblAvisoSemXml.Location = New Point(3, 638)
+        lblAvisoSemXml.Name = "lblAvisoSemXml"
+        lblAvisoSemXml.Size = New Size(600, 18)
+        lblAvisoSemXml.TabIndex = 6
+        lblAvisoSemXml.Text = "As linhas em destaque não têm XML gerado e por isso não serão exportadas."
+        lblAvisoSemXml.Visible = False
+        '
         ' Modelo
         ' 
         Modelo.DataPropertyName = "Modelo"
@@ -662,9 +762,10 @@ Partial Class FrmPrincipal
         ' 
         tabConfiguracoes.Controls.Add(grpConexao)
         tabConfiguracoes.Controls.Add(lblVersao)
+        tabConfiguracoes.Controls.Add(btnAjuda)
+        tabConfiguracoes.Controls.Add(btnVerLog)
         tabConfiguracoes.Controls.Add(btnVerificarAtualizacao)
         tabConfiguracoes.Controls.Add(grpEmail)
-        tabConfiguracoes.Controls.Add(btnAjuda)
         tabConfiguracoes.Controls.Add(grpAgendamento)
         tabConfiguracoes.Controls.Add(btnRestaurarVersao)
         tabConfiguracoes.Location = New Point(4, 24)
@@ -711,7 +812,7 @@ Partial Class FrmPrincipal
         btnConfigurarServidor.BackColor = SystemColors.HotTrack
         btnConfigurarServidor.Cursor = Cursors.Hand
         btnConfigurarServidor.FlatStyle = FlatStyle.Flat
-        btnConfigurarServidor.Font = New Font("Arial", 9.0F, FontStyle.Bold, GraphicsUnit.Point, CByte(0))
+        btnConfigurarServidor.Font = New Font("Arial", 9F, FontStyle.Bold, GraphicsUnit.Point, CByte(0))
         btnConfigurarServidor.ForeColor = SystemColors.GradientActiveCaption
         btnConfigurarServidor.Location = New Point(10, 45)
         btnConfigurarServidor.Name = "btnConfigurarServidor"
@@ -719,6 +820,46 @@ Partial Class FrmPrincipal
         btnConfigurarServidor.TabIndex = 2
         btnConfigurarServidor.Text = "Configurar Bancos"
         btnConfigurarServidor.UseVisualStyleBackColor = False
+        ' 
+        ' lblVersao
+        ' 
+        lblVersao.AutoSize = True
+        lblVersao.Font = New Font("Arial", 9F, FontStyle.Bold, GraphicsUnit.Point, CByte(0))
+        lblVersao.Location = New Point(539, 354)
+        lblVersao.Name = "lblVersao"
+        lblVersao.Size = New Size(67, 15)
+        lblVersao.TabIndex = 30
+        lblVersao.Text = "Versão 1.0"
+        ' 
+        ' btnAjuda
+        ' 
+        btnAjuda.Font = New Font("Arial", 9F, FontStyle.Bold, GraphicsUnit.Point, CByte(0))
+        btnAjuda.ForeColor = SystemColors.HotTrack
+        btnAjuda.Location = New Point(506, 297)
+        btnAjuda.Name = "btnAjuda"
+        btnAjuda.Size = New Size(100, 22)
+        btnAjuda.TabIndex = 32
+        btnAjuda.Text = "Ajuda (F1)"
+        btnAjuda.UseVisualStyleBackColor = True
+        ' 
+        ' btnVerLog
+        ' 
+        btnVerLog.Font = New Font("Arial", 9F, FontStyle.Bold, GraphicsUnit.Point, CByte(0))
+        btnVerLog.Location = New Point(506, 325)
+        btnVerLog.Name = "btnVerLog"
+        btnVerLog.Size = New Size(100, 22)
+        btnVerLog.TabIndex = 33
+        btnVerLog.Text = "Ver log"
+        btnVerLog.UseVisualStyleBackColor = True
+        ' 
+        ' btnVerificarAtualizacao
+        ' 
+        btnVerificarAtualizacao.Location = New Point(468, 269)
+        btnVerificarAtualizacao.Name = "btnVerificarAtualizacao"
+        btnVerificarAtualizacao.Size = New Size(140, 22)
+        btnVerificarAtualizacao.TabIndex = 31
+        btnVerificarAtualizacao.Text = "Verificar Atualizações"
+        btnVerificarAtualizacao.UseVisualStyleBackColor = True
         ' 
         ' grpEmail
         ' 
@@ -745,7 +886,7 @@ Partial Class FrmPrincipal
         ' 
         btnConfigurarEmail.BackColor = SystemColors.HotTrack
         btnConfigurarEmail.FlatStyle = FlatStyle.Flat
-        btnConfigurarEmail.Font = New Font("Arial", 9.0F, FontStyle.Bold, GraphicsUnit.Point, CByte(0))
+        btnConfigurarEmail.Font = New Font("Arial", 9F, FontStyle.Bold, GraphicsUnit.Point, CByte(0))
         btnConfigurarEmail.ForeColor = SystemColors.GradientActiveCaption
         btnConfigurarEmail.Location = New Point(10, 45)
         btnConfigurarEmail.Name = "btnConfigurarEmail"
@@ -760,7 +901,6 @@ Partial Class FrmPrincipal
         grpAgendamento.Controls.Add(lblHoraAgendamento)
         grpAgendamento.Controls.Add(dtpHoraAgendamento)
         grpAgendamento.Controls.Add(chkIniciarComWindows)
-        grpAgendamento.Controls.Add(chkManterSempreAtivo)
         grpAgendamento.Controls.Add(chkDiaFixo)
         grpAgendamento.Controls.Add(lblDiaPersonalizado)
         grpAgendamento.Controls.Add(nudDiaAgendamento)
@@ -811,19 +951,9 @@ Partial Class FrmPrincipal
         chkIniciarComWindows.TabIndex = 3
         chkIniciarComWindows.Text = "Iniciar com o Windows"
         chkIniciarComWindows.UseVisualStyleBackColor = True
-        ' 
-        ' chkManterSempreAtivo
-        ' 
-        chkManterSempreAtivo.AutoSize = True
-        chkManterSempreAtivo.Location = New Point(310, 58)
-        chkManterSempreAtivo.Name = "chkManterSempreAtivo"
-        chkManterSempreAtivo.Size = New Size(185, 19)
-        chkManterSempreAtivo.TabIndex = 7
-        chkManterSempreAtivo.Text = "Manter sempre em execução"
-        chkManterSempreAtivo.UseVisualStyleBackColor = True
-        ' 
+        '
         ' chkDiaFixo
-        ' 
+        '
         chkDiaFixo.AutoSize = True
         chkDiaFixo.Checked = True
         chkDiaFixo.CheckState = CheckState.Checked
@@ -871,7 +1001,7 @@ Partial Class FrmPrincipal
         ' 
         ' btnTestarAgendamento
         ' 
-        btnTestarAgendamento.Font = New Font("Arial", 9.0F, FontStyle.Bold, GraphicsUnit.Point, CByte(0))
+        btnTestarAgendamento.Font = New Font("Arial", 9F, FontStyle.Bold, GraphicsUnit.Point, CByte(0))
         btnTestarAgendamento.Location = New Point(415, 115)
         btnTestarAgendamento.Name = "btnTestarAgendamento"
         btnTestarAgendamento.Size = New Size(120, 26)
@@ -882,9 +1012,9 @@ Partial Class FrmPrincipal
         ' btnRestaurarVersao
         ' 
         btnRestaurarVersao.BackColor = SystemColors.Control
-        btnRestaurarVersao.Font = New Font("Arial", 9.0F, FontStyle.Bold, GraphicsUnit.Point, CByte(0))
+        btnRestaurarVersao.Font = New Font("Arial", 9F, FontStyle.Bold, GraphicsUnit.Point, CByte(0))
         btnRestaurarVersao.ForeColor = Color.DarkRed
-        btnRestaurarVersao.Location = New Point(8, 269)
+        btnRestaurarVersao.Location = New Point(6, 269)
         btnRestaurarVersao.Name = "btnRestaurarVersao"
         btnRestaurarVersao.Size = New Size(181, 26)
         btnRestaurarVersao.TabIndex = 4
@@ -897,36 +1027,6 @@ Partial Class FrmPrincipal
         Label10.Name = "Label10"
         Label10.Size = New Size(100, 23)
         Label10.TabIndex = 0
-        ' 
-        ' lblVersao
-        ' 
-        lblVersao.AutoSize = True
-        lblVersao.Font = New Font("Arial", 9.0F, FontStyle.Bold, GraphicsUnit.Point, CByte(0))
-        lblVersao.Location = New Point(539, 324)
-        lblVersao.Name = "lblVersao"
-        lblVersao.Size = New Size(67, 15)
-        lblVersao.TabIndex = 30
-        lblVersao.Text = "Versão 1.0"
-        ' 
-        ' btnVerificarAtualizacao
-        ' 
-        btnVerificarAtualizacao.Location = New Point(466, 271)
-        btnVerificarAtualizacao.Name = "btnVerificarAtualizacao"
-        btnVerificarAtualizacao.Size = New Size(140, 22)
-        btnVerificarAtualizacao.TabIndex = 31
-        btnVerificarAtualizacao.Text = "Verificar Atualizações"
-        btnVerificarAtualizacao.UseVisualStyleBackColor = True
-        ' 
-        ' btnAjuda
-        ' 
-        btnAjuda.Font = New Font("Arial", 9.0F, FontStyle.Bold, GraphicsUnit.Point, CByte(0))
-        btnAjuda.ForeColor = SystemColors.HotTrack
-        btnAjuda.Location = New Point(506, 299)
-        btnAjuda.Name = "btnAjuda"
-        btnAjuda.Size = New Size(100, 22)
-        btnAjuda.TabIndex = 32
-        btnAjuda.Text = "Ajuda (F1)"
-        btnAjuda.UseVisualStyleBackColor = True
         ' 
         ' tmrAtualizacao
         ' 
@@ -963,12 +1063,12 @@ Partial Class FrmPrincipal
         ' 
         ' FrmPrincipal
         ' 
-        AutoScaleDimensions = New SizeF(7.0F, 15.0F)
+        AutoScaleDimensions = New SizeF(7F, 15F)
         AutoScaleMode = AutoScaleMode.Font
         BackColor = SystemColors.Control
-        ClientSize = New Size(640, 709)
+        ClientSize = New Size(640, 731)
         Controls.Add(tabPrincipal)
-        Font = New Font("Arial", 9.0F, FontStyle.Regular, GraphicsUnit.Point, CByte(0))
+        Font = New Font("Arial", 9F, FontStyle.Regular, GraphicsUnit.Point, CByte(0))
         Icon = CType(resources.GetObject("$this.Icon"), Icon)
         KeyPreview = True
         Name = "FrmPrincipal"
@@ -987,6 +1087,8 @@ Partial Class FrmPrincipal
         GroupBox2.PerformLayout()
         GroupBox1.ResumeLayout(False)
         GroupBox1.PerformLayout()
+        grpTipoEntrada.ResumeLayout(False)
+        grpTipoEntrada.PerformLayout()
         grpAcao.ResumeLayout(False)
         grpAcao.PerformLayout()
         CType(dgvCupons, ComponentModel.ISupportInitialize).EndInit()
@@ -1015,6 +1117,12 @@ Partial Class FrmPrincipal
     Friend WithEvents lblDirecao As Label
     Friend WithEvents rbSaida As RadioButton
     Friend WithEvents rbEntrada As RadioButton
+    Friend WithEvents grpTipoEntrada As GroupBox
+    Friend WithEvents rbComprasPropias As RadioButton
+    Friend WithEvents rbDevolucoesVenda As RadioButton
+    Friend WithEvents rbComprasFornecedores As RadioButton
+    Friend WithEvents rbTodosEntrada As RadioButton
+    Friend WithEvents lblAvisoEntrada As Label
     Friend WithEvents lblFornecedor As Label
     Friend WithEvents cboFornecedor As ComboBox
     Friend WithEvents lblModelo As Label
@@ -1027,6 +1135,7 @@ Partial Class FrmPrincipal
     Friend WithEvents txbFim As TextBox
     Friend WithEvents lblSerieFiltro As Label
     Friend WithEvents txbSerie As TextBox
+    Friend WithEvents chkAgruparPorSerie As CheckBox
     Friend WithEvents lblStatusFiltro As Label
     Friend WithEvents chkTodos As CheckBox
     Friend WithEvents chkEmitidas As CheckBox
@@ -1043,6 +1152,7 @@ Partial Class FrmPrincipal
     Friend WithEvents lblQuantidade As Label
     Friend WithEvents lblQtd As Label
     Friend WithEvents dgvCupons As DataGridView
+    Friend WithEvents lblAvisoSemXml As Label
     Friend WithEvents Modelo As DataGridViewTextBoxColumn
     Friend WithEvents Documento As DataGridViewTextBoxColumn
     Friend WithEvents Codigo As DataGridViewTextBoxColumn
@@ -1059,14 +1169,12 @@ Partial Class FrmPrincipal
     Friend WithEvents grpEmail As GroupBox
     Friend WithEvents Label10 As Label
     Friend WithEvents btnConfigurarEmail As Button
-    Friend WithEvents btnMapearDestinatarios As Button
     Friend WithEvents btnRestaurarVersao As Button
     Friend WithEvents grpAgendamento As GroupBox
     Friend WithEvents chkAgendamentoAtivo As CheckBox
     Friend WithEvents lblHoraAgendamento As Label
     Friend WithEvents dtpHoraAgendamento As DateTimePicker
     Friend WithEvents chkIniciarComWindows As CheckBox
-    Friend WithEvents chkManterSempreAtivo As CheckBox
     Friend WithEvents chkDiaFixo As CheckBox
     Friend WithEvents lblDiaPersonalizado As Label
     Friend WithEvents nudDiaAgendamento As NumericUpDown
@@ -1077,6 +1185,7 @@ Partial Class FrmPrincipal
     Friend WithEvents lblVersao As Label
     Friend WithEvents btnVerificarAtualizacao As Button
     Friend WithEvents btnAjuda As Button
+    Friend WithEvents btnVerLog As Button
     Friend WithEvents tmrAtualizacao As Timer
     Friend WithEvents tmrAgendamento As Timer
     Friend WithEvents notifyIcon1 As NotifyIcon

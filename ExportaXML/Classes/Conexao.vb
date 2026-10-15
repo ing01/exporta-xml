@@ -17,36 +17,48 @@ Public Class Conexao
         If String.IsNullOrWhiteSpace(usuario) Then usuario = "postgres"
         If String.IsNullOrWhiteSpace(senha) Then senha = "ds_due339"
 
-        Dim connString As String =
-            $"Host={servidor};" &
-            $"Port={porta};" &
-            $"Database={banco};" &
-            $"Username={usuario};" &
-            $"Password={senha};"
+        ' Builder em vez de concatenar texto: senha com ";" ou "=" não quebra a
+        ' conexão nem injeta outros parâmetros. CommandTimeout alto porque a
+        ' exportação de um mês inteiro em banco grande passa fácil dos 30s padrão;
+        ' Timeout curto para falhar rápido (e com mensagem clara) se o servidor não existir.
+        Dim construtor As New NpgsqlConnectionStringBuilder With {
+            .Host = servidor.Trim(),
+            .Port = porta,
+            .Database = banco.Trim(),
+            .Username = usuario.Trim(),
+            .Password = senha,
+            .Timeout = 15,
+            .CommandTimeout = 900
+        }
 
-        Dim conn As New NpgsqlConnection(connString)
+        Dim conn As New NpgsqlConnection(construtor.ConnectionString)
 
-        conn.Open()
+        Try
+            conn.Open()
 
-        Dim codificacaoServidor As String = ""
+            Dim codificacaoServidor As String = ""
 
-        Using cmd As New NpgsqlCommand("SHOW server_encoding;", conn)
-            codificacaoServidor =
-                cmd.ExecuteScalar()?.ToString()?.ToUpperInvariant()
-        End Using
-
-        codificacaoDetectada = codificacaoServidor
-
-        If codificacaoServidor = "SQL_ASCII" Then
-
-            Using cmd As New NpgsqlCommand(
-                "SET client_encoding TO SQL_ASCII;",
-                conn
-            )
-                cmd.ExecuteNonQuery()
+            Using cmd As New NpgsqlCommand("SHOW server_encoding;", conn)
+                codificacaoServidor =
+                    cmd.ExecuteScalar()?.ToString()?.ToUpperInvariant()
             End Using
 
-        End If
+            codificacaoDetectada = codificacaoServidor
+
+            If codificacaoServidor = "SQL_ASCII" Then
+
+                Using cmd As New NpgsqlCommand(
+                    "SET client_encoding TO SQL_ASCII;",
+                    conn
+                )
+                    cmd.ExecuteNonQuery()
+                End Using
+
+            End If
+        Catch
+            conn.Dispose()
+            Throw
+        End Try
 
         Return conn
 

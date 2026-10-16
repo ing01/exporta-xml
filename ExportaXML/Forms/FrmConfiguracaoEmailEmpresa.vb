@@ -16,6 +16,11 @@ Public Class FrmConfiguracaoEmailEmpresa
 
     Private ReadOnly empresa As EmpresaItem
 
+    ''' <summary>Nome do banco da empresa — junto com o código, identifica a empresa (o mesmo código existe em bancos diferentes). Vazio no "Global".</summary>
+    Private Function NomeDoBanco() As String
+        Return If(empresa.Codigo = 0, "", empresa.Conexao?.Nome)
+    End Function
+
     ''' <summary>True se algo foi salvo — <see cref="FrmEmail"/> usa isso pra saber se precisa atualizar a grade.</summary>
     <System.ComponentModel.Browsable(False)>
     <System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)>
@@ -68,7 +73,7 @@ Public Class FrmConfiguracaoEmailEmpresa
                 rbManual.Checked = True
             End If
         Else
-            Dim override = cfg.ConfiguracoesEmailPorEmpresa?.FirstOrDefault(Function(c) c.CodigoEmpresa = empresa.Codigo)
+            Dim override = EscopoEmpresa.ConfigEmailDaEmpresa(cfg, empresa.Codigo, NomeDoBanco())
 
             If override Is Nothing OrElse override.Origem = "Padrao" Then
                 LimparCampos()
@@ -226,10 +231,10 @@ Public Class FrmConfiguracaoEmailEmpresa
                     cfg.ConfiguracoesEmailPorEmpresa = New List(Of ConfiguracaoEmailEmpresa)()
                 End If
 
-                cfg.ConfiguracoesEmailPorEmpresa.RemoveAll(Function(c) c.CodigoEmpresa = empresa.Codigo)
+                cfg.ConfiguracoesEmailPorEmpresa.RemoveAll(Function(c) EscopoEmpresa.Corresponde(c.CodigoEmpresa, c.NomeBanco, empresa.Codigo, NomeDoBanco(), cfg.Conexoes.Count))
 
                 If Not rbPadrao.Checked Then
-                    Dim nova As New ConfiguracaoEmailEmpresa With {.CodigoEmpresa = empresa.Codigo}
+                    Dim nova As New ConfiguracaoEmailEmpresa With {.CodigoEmpresa = empresa.Codigo, .NomeBanco = NomeDoBanco()}
 
                     If rbSincronizar.Checked Then
                         nova.Origem = "Banco"
@@ -366,7 +371,7 @@ Public Class FrmConfiguracaoEmailEmpresa
 
         Dim locais = cfg.DestinatariosLocais
         If locais IsNot Nothing Then
-            For Each d In locais.Where(Function(x) x.CodigoEmpresa = empresa.Codigo AndAlso x.Ativo = True)
+            For Each d In EscopoEmpresa.DestinatariosDaEmpresa(cfg, empresa.Codigo, NomeDoBanco())
                 If Not lbDestinatarios.Items.Contains(d.Email) Then lbDestinatarios.Items.Add(d.Email)
             Next
         End If
@@ -378,7 +383,7 @@ Public Class FrmConfiguracaoEmailEmpresa
         Dim descricao = InputBox("Descrição (opcional):", "Adicionar Destinatário")
         Dim locaisCfg = ConfiguracaoService.Carregar()
         If locaisCfg.DestinatariosLocais Is Nothing Then locaisCfg.DestinatariosLocais = New List(Of DestinatarioLocal)()
-        locaisCfg.DestinatariosLocais.Add(New DestinatarioLocal With {.CodigoEmpresa = empresa.Codigo, .Email = email.Trim(), .Descricao = descricao, .Ativo = True})
+        locaisCfg.DestinatariosLocais.Add(New DestinatarioLocal With {.CodigoEmpresa = empresa.Codigo, .NomeBanco = NomeDoBanco(), .Email = email.Trim(), .Descricao = descricao, .Ativo = True})
         ConfiguracaoService.Salvar(locaisCfg)
         Salvo = True
         Await LoadDestinatariosAsync()
@@ -394,8 +399,8 @@ Public Class FrmConfiguracaoEmailEmpresa
         If String.IsNullOrWhiteSpace(newEmail) Then Exit Sub
         Dim locaisCfg = ConfiguracaoService.Carregar()
         If locaisCfg.DestinatariosLocais Is Nothing Then locaisCfg.DestinatariosLocais = New List(Of DestinatarioLocal)()
-        locaisCfg.DestinatariosLocais.RemoveAll(Function(d) d.CodigoEmpresa = empresa.Codigo AndAlso d.Email = oldEmail)
-        locaisCfg.DestinatariosLocais.Add(New DestinatarioLocal With {.CodigoEmpresa = empresa.Codigo, .Email = newEmail.Trim(), .Descricao = String.Empty, .Ativo = True})
+        locaisCfg.DestinatariosLocais.RemoveAll(Function(d) EscopoEmpresa.Corresponde(d.CodigoEmpresa, d.NomeBanco, empresa.Codigo, NomeDoBanco(), locaisCfg.Conexoes.Count) AndAlso d.Email = oldEmail)
+        locaisCfg.DestinatariosLocais.Add(New DestinatarioLocal With {.CodigoEmpresa = empresa.Codigo, .NomeBanco = NomeDoBanco(), .Email = newEmail.Trim(), .Descricao = String.Empty, .Ativo = True})
         ConfiguracaoService.Salvar(locaisCfg)
         Salvo = True
         Await LoadDestinatariosAsync()
@@ -412,7 +417,7 @@ Public Class FrmConfiguracaoEmailEmpresa
         Dim email = lbDestinatarios.SelectedItem.ToString()
         Dim locaisCfg = ConfiguracaoService.Carregar()
         If locaisCfg.DestinatariosLocais Is Nothing Then locaisCfg.DestinatariosLocais = New List(Of DestinatarioLocal)()
-        locaisCfg.DestinatariosLocais.RemoveAll(Function(d) d.CodigoEmpresa = empresa.Codigo AndAlso d.Email = email)
+        locaisCfg.DestinatariosLocais.RemoveAll(Function(d) EscopoEmpresa.Corresponde(d.CodigoEmpresa, d.NomeBanco, empresa.Codigo, NomeDoBanco(), locaisCfg.Conexoes.Count) AndAlso d.Email = email)
         ConfiguracaoService.Salvar(locaisCfg)
         Salvo = True
         Await LoadDestinatariosAsync()

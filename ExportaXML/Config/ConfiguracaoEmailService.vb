@@ -68,9 +68,10 @@ Public Class ConfiguracaoEmailService
     Public Shared Function ResolverConfiguracaoParaEmpresa(
         cfg As Configuracoes,
         conn As NpgsqlConnection,
-        codigoEmpresa As Integer) As (Servidor As String, Porta As Integer, Usuario As String, Senha As String, Remetente As String, UsarSSL As Boolean)
+        codigoEmpresa As Integer,
+        Optional nomeBanco As String = Nothing) As (Servidor As String, Porta As Integer, Usuario As String, Senha As String, Remetente As String, UsarSSL As Boolean)
 
-        Dim override = cfg?.ConfiguracoesEmailPorEmpresa?.FirstOrDefault(Function(c) c.CodigoEmpresa = codigoEmpresa)
+        Dim override = EscopoEmpresa.ConfigEmailDaEmpresa(cfg, codigoEmpresa, nomeBanco)
 
         If override IsNot Nothing Then
             If override.Origem = "Manual" Then

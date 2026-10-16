@@ -27,6 +27,7 @@ Public Class FrmEmail
         dgvEmpresasEmail.Enabled = False
         btnConfigurar.Enabled = False
         lblExplicacao.Text = "Carregando empresas..."
+        lblExplicacao.MaximumSize = New Size(Math.Max(300, ClientSize.Width - 24), 0)
     End Sub
 
     Private Async Sub FrmEmail_Shown(sender As Object, e As EventArgs) Handles MyBase.Shown
@@ -37,6 +38,7 @@ Public Class FrmEmail
         dgvEmpresasEmail.Enabled = False
         btnConfigurar.Enabled = False
         lblExplicacao.Text = "Carregando empresas..."
+        lblExplicacao.MaximumSize = New Size(Math.Max(300, ClientSize.Width - 24), 0)
 
         Dim cfg = ConfiguracaoService.Carregar()
         Dim resultado = Await Task.Run(Function() MontarLinhas(cfg))
@@ -47,7 +49,9 @@ Public Class FrmEmail
         dgvEmpresasEmail.Enabled = True
         btnConfigurar.Enabled = True
 
-        If resultado.Erros.Count > 0 Then
+        If resultado.Aviso <> "" Then
+            lblExplicacao.Text = resultado.Aviso
+        ElseIf resultado.Erros.Count > 0 Then
             lblExplicacao.Text = $"Erro ao conectar em: {String.Join("; ", resultado.Erros)}"
         Else
             lblExplicacao.Text = "Cada empresa tem sua própria configuração. Selecione uma e clique em Configurar."
@@ -59,37 +63,20 @@ Public Class FrmEmail
     ''' toca em nenhum controle da tela, pra poder rodar dentro de
     ''' <see cref="Task.Run"/> com segurança.
     ''' </summary>
-    Private Function MontarLinhas(cfg As Configuracoes) As (Linhas As List(Of LinhaResumo), Erros As List(Of String))
+    Private Function MontarLinhas(cfg As Configuracoes) As (Linhas As List(Of LinhaResumo), Erros As List(Of String), Aviso As String)
         Dim linhas As New List(Of LinhaResumo)
         Dim erros As New List(Of String)
+        Dim aviso As String = ""
 
-        Dim global_ As New EmpresaItem With {.Codigo = 0, .Nome = "Global", .NomeExibicao = "Global (padrão)"}
-        linhas.Add(New LinhaResumo With {
-            .Item = global_,
-            .NomeExibicao = global_.NomeExibicao,
-            .Modo = If(cfg.OrigemConfiguracao = "Banco", "Sincronizado do banco", "Manual"),
-            .Destinatarios = ContarDestinatarios(0, cfg)
-        })
-
+        ' Fase 1: lista as empresas de TODOS os bancos (empresa = banco + código).
+        Dim todas As New List(Of EmpresaItem)
         For Each banco As ConexaoBanco In cfg.Conexoes
             Try
                 Using conn = Conexao.Abrir(banco.Servidor, banco.Porta, banco.Banco, banco.Usuario, banco.Senha)
-                    Dim empresas = EmpresaService.Listar(conn).Where(Function(emp) emp.Codigo <> 0).ToList()
-                    For Each emp In empresas
+                    For Each emp In EmpresaService.Listar(conn).Where(Function(e) e.Codigo <> 0)
                         emp.Conexao = banco
                         emp.NomeExibicao = If(cfg.Conexoes.Count > 1, $"{emp.Nome} ({banco.Nome})", emp.Nome)
-
-                        Dim override = cfg.ConfiguracoesEmailPorEmpresa?.FirstOrDefault(Function(c) c.CodigoEmpresa = emp.Codigo)
-                        Dim modo As String =
-                            If(override Is Nothing OrElse override.Origem = "Padrao", "Padrão (Global)",
-                            If(override.Origem = "Banco", "Sincronizado do banco", "Manual"))
-
-                        linhas.Add(New LinhaResumo With {
-                            .Item = emp,
-                            .NomeExibicao = emp.NomeExibicao,
-                            .Modo = modo,
-                            .Destinatarios = ContarDestinatarios(emp.Codigo, cfg)
-                        })
+                        todas.Add(emp)
                     Next
                 End Using
             Catch ex As Exception
@@ -98,13 +85,51 @@ Public Class FrmEmail
             End Try
         Next
 
-        Return (linhas, erros)
+        ' Cadastros antigos (só com o código da empresa) são associados ao banco quando o
+        ' código existe em um único banco. Só roda com TODOS os bancos acessíveis: com um
+        ' banco fora do ar a lista está incompleta e a associação poderia ficar errada.
+        If erros.Count = 0 AndAlso EscopoEmpresa.TemLegadosAmbiguos(cfg) Then
+            Dim r = ConfiguracaoService.MigrarEscopoLegado(todas)
+            If r.Associados > 0 Then
+                LogService.RegistrarAtividade($"Cadastros de e-mail/destinatário associados ao banco da empresa: {r.Associados}")
+            End If
+            If r.Ambiguos > 0 Then
+                aviso = $"Atenção: {r.Ambiguos} cadastro(s) antigo(s) de destinatário/e-mail não indicavam o banco e o mesmo código de empresa existe em mais de um banco; por segurança estão DESATIVADOS. Recadastre-os em cada empresa."
+                LogService.RegistrarAtividade(aviso)
+            End If
+            cfg = ConfiguracaoService.Carregar()
+        End If
+
+        ' Fase 2: monta as linhas.
+        Dim global_ As New EmpresaItem With {.Codigo = 0, .Nome = "Global", .NomeExibicao = "Global (padrão)"}
+        linhas.Add(New LinhaResumo With {
+            .Item = global_,
+            .NomeExibicao = global_.NomeExibicao,
+            .Modo = If(cfg.OrigemConfiguracao = "Banco", "Sincronizado do banco", "Manual"),
+            .Destinatarios = ContarDestinatarios(0, Nothing, cfg)
+        })
+
+        For Each emp In todas
+            Dim override = EscopoEmpresa.ConfigEmailDaEmpresa(cfg, emp.Codigo, emp.Conexao.Nome)
+            Dim modo As String =
+                If(override Is Nothing OrElse override.Origem = "Padrao", "Padrão (Global)",
+                If(override.Origem = "Banco", "Sincronizado do banco", "Manual"))
+
+            linhas.Add(New LinhaResumo With {
+                .Item = emp,
+                .NomeExibicao = emp.NomeExibicao,
+                .Modo = modo,
+                .Destinatarios = ContarDestinatarios(emp.Codigo, emp.Conexao.Nome, cfg)
+            })
+        Next
+
+        Return (linhas, erros, aviso)
     End Function
 
     ''' <summary>Só conta os destinatários locais (config.json) — os do banco exigiriam abrir uma conexão por linha, custo desnecessário só pra listar.</summary>
-    Private Function ContarDestinatarios(codigoEmpresa As Integer, cfg As Configuracoes) As String
-        Dim qtd = cfg.DestinatariosLocais?.Where(Function(d) d.CodigoEmpresa = codigoEmpresa AndAlso d.Ativo).Count()
-        If qtd Is Nothing OrElse qtd = 0 Then Return "(nenhum)"
+    Private Function ContarDestinatarios(codigoEmpresa As Integer, nomeBanco As String, cfg As Configuracoes) As String
+        Dim qtd = EscopoEmpresa.DestinatariosDaEmpresa(cfg, codigoEmpresa, nomeBanco).Count
+        If qtd = 0 Then Return "(nenhum)"
         Return $"{qtd} cadastrado(s)"
     End Function
 

@@ -8,6 +8,9 @@ Public Class ConfiguracaoEmailEmpresa
 
     Public Property CodigoEmpresa As Integer
 
+    ''' <summary>Nome do banco (ConexaoBanco.Nome) ao qual a empresa pertence; vazio em cadastros antigos.</summary>
+    Public Property NomeBanco As String = ""
+
     ''' <summary>
     ''' "Padrao" = não tem override, usa a configuração Global (cfg.ServidorSMTP
     ''' etc.); "Manual" = usa os campos abaixo, digitados nesta tela; "Banco" =

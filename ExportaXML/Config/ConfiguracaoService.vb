@@ -68,6 +68,57 @@ Public Class ConfiguracaoService
         End SyncLock
     End Sub
 
+    ''' <summary>
+    ''' Associa a um banco os cadastros ANTIGOS de destinatário/e-mail (que só
+    ''' tinham o código da empresa). Só associa quando o código existe em UM único
+    ''' banco; se o mesmo código aparece em mais de um banco, é ambíguo (não dá
+    ''' para saber a qual empresa o cadastro se destinava) e o cadastro continua
+    ''' sem uso até ser recadastrado — melhor isso do que enviar o XML para a
+    ''' empresa errada. Chame SÓ quando conseguiu listar as empresas de TODOS os
+    ''' bancos (se um banco estava fora do ar, a lista está incompleta).
+    ''' </summary>
+    ''' <returns>(quantos foram associados, quantos continuam ambíguos)</returns>
+    Public Shared Function MigrarEscopoLegado(empresasDeTodosOsBancos As IEnumerable(Of EmpresaItem)) As (Associados As Integer, Ambiguos As Integer)
+        SyncLock TravaArquivo
+            Dim cfg = Carregar()
+            If cfg.Conexoes Is Nothing OrElse cfg.Conexoes.Count <= 1 Then Return (0, 0)
+
+            Dim empresas = empresasDeTodosOsBancos.Where(Function(e) e.Codigo <> 0 AndAlso e.Conexao IsNot Nothing).ToList()
+            Dim associados As Integer = 0, ambiguos As Integer = 0
+
+            Dim resolver As Func(Of Integer, String) =
+                Function(codigo)
+                    Dim bancos = empresas.Where(Function(e) e.Codigo = codigo).Select(Function(e) e.Conexao.Nome).Distinct(StringComparer.OrdinalIgnoreCase).ToList()
+                    Return If(bancos.Count = 1, bancos(0), Nothing)
+                End Function
+
+            If cfg.DestinatariosLocais IsNot Nothing Then
+                For Each d In cfg.DestinatariosLocais.Where(Function(x) x.CodigoEmpresa <> 0 AndAlso String.IsNullOrWhiteSpace(x.NomeBanco))
+                    Dim banco = resolver(d.CodigoEmpresa)
+                    If banco IsNot Nothing Then
+                        d.NomeBanco = banco : associados += 1
+                    Else
+                        ambiguos += 1
+                    End If
+                Next
+            End If
+
+            If cfg.ConfiguracoesEmailPorEmpresa IsNot Nothing Then
+                For Each c In cfg.ConfiguracoesEmailPorEmpresa.Where(Function(x) x.CodigoEmpresa <> 0 AndAlso String.IsNullOrWhiteSpace(x.NomeBanco))
+                    Dim banco = resolver(c.CodigoEmpresa)
+                    If banco IsNot Nothing Then
+                        c.NomeBanco = banco : associados += 1
+                    Else
+                        ambiguos += 1
+                    End If
+                Next
+            End If
+
+            If associados > 0 Then Salvar(cfg)
+            Return (associados, ambiguos)
+        End SyncLock
+    End Function
+
     ''' <summary>Trava de escrita/leitura dentro do mesmo processo (entre processos, a troca atômica do arquivo cobre o caso).</summary>
     Private Shared ReadOnly TravaArquivo As New Object()
 

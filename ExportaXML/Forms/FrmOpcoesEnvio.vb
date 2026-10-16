@@ -118,7 +118,7 @@ Public Class FrmOpcoesEnvio
 
             For Each o In candidatas
                 Dim conn As NpgsqlConnection = AbrirConexao(o.Conexao, conexoes)
-                Dim email As String = AgendamentoService.ObterDestinatarioParaEmpresa(_cfg, conn, o.Codigo).Trim()
+                Dim email As String = AgendamentoService.ObterDestinatarioParaEmpresa(_cfg, conn, o.Codigo, o.Conexao?.Nome).Trim()
                 If email <> "" AndAlso Not sugestoes.Contains(email, StringComparer.OrdinalIgnoreCase) Then sugestoes.Add(email)
             Next
         Finally
@@ -157,7 +157,7 @@ Public Class FrmOpcoesEnvio
         Dim conn As NpgsqlConnection = Nothing
         Try
             conn = AbrirConexao(opcao.Conexao, Nothing)
-            Return ConfiguracaoEmailService.ResolverConfiguracaoParaEmpresa(_cfg, conn, opcao.Codigo)
+            Return ConfiguracaoEmailService.ResolverConfiguracaoParaEmpresa(_cfg, conn, opcao.Codigo, opcao.Conexao?.Nome)
         Finally
             conn?.Dispose()
         End Try
@@ -172,7 +172,7 @@ Public Class FrmOpcoesEnvio
             ' Empresa sem conta própria usa a Global — avisa, senão parece que a troca de conta não fez nada.
             Dim usaGlobal As Boolean = False
             If opcao.Codigo <> 0 Then
-                Dim ov = _cfg.ConfiguracoesEmailPorEmpresa?.FirstOrDefault(Function(x) x.CodigoEmpresa = opcao.Codigo)
+                Dim ov = EscopoEmpresa.ConfigEmailDaEmpresa(_cfg, opcao.Codigo, opcao.Conexao?.Nome)
                 usaGlobal = (ov Is Nothing OrElse ov.Origem = "Padrao")
             End If
             Dim aviso As String = If(usaGlobal, "Esta empresa não tem conta própria: está usando a configuração Global." & vbCrLf, "")

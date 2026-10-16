@@ -128,6 +128,7 @@ Public Class AgendamentoService
             End If
 
             AvisarCompetenciasPuladas(cfg, competencia, caminhoLog)
+            cfg = AssociarCadastrosAntigosAoBanco(cfg, caminhoLog)
 
             LogService.Registrar(caminhoLog, $"===== Início da exportação automática ({competencia}){If(forcar, " [execução manual]", "")} =====")
 
@@ -271,7 +272,7 @@ Public Class AgendamentoService
             LogService.Registrar(caminhoLog, $"{banco.Nome} - {empresa.Nome}: {total} XML(s) exportados.")
 
             Dim origemDestinatario As String = ""
-            Dim destinatario As String = ObterDestinatarioParaEmpresa(cfg, conn, empresa.Codigo, origemDestinatario)
+            Dim destinatario As String = ObterDestinatarioParaEmpresa(cfg, conn, empresa.Codigo, banco.Nome, origemDestinatario)
             ' Envio automático só vai para destinatário PRÓPRIO da empresa: cair no Global
             ' ou no "último usado" mandaria XML fiscal de uma empresa para outra pessoa.
             If String.IsNullOrWhiteSpace(destinatario) OrElse origemDestinatario <> "empresa" Then
@@ -287,7 +288,7 @@ Public Class AgendamentoService
 
             ' Cada empresa pode ter sua própria configuração de SMTP (manual ou
             ' sincronizada do banco DELA) — ver ConfiguracaoEmailService.ResolverConfiguracaoParaEmpresa.
-            Dim configEmail = ConfiguracaoEmailService.ResolverConfiguracaoParaEmpresa(cfg, conn, empresa.Codigo)
+            Dim configEmail = ConfiguracaoEmailService.ResolverConfiguracaoParaEmpresa(cfg, conn, empresa.Codigo, banco.Nome)
 
             EmailService.Enviar(
                 configEmail.Servidor,
@@ -312,6 +313,38 @@ Public Class AgendamentoService
                 If File.Exists(caminhoZipEmpresa) Then File.Delete(caminhoZipEmpresa)
             Catch
             End Try
+        End Try
+    End Function
+
+    ''' <summary>
+    ''' Destinatários e contas de e-mail cadastrados ANTES de existir o campo "banco"
+    ''' valiam para o mesmo código de empresa em todos os bancos. Aqui (e na tela de
+    ''' e-mail) eles são associados ao banco quando o código só existe em um deles — ver
+    ''' <see cref="ConfiguracaoService.MigrarEscopoLegado"/>. Sem isso o serviço do Windows,
+    ''' rodando sem tela, deixaria esses cadastros inativos até alguém abrir o programa.
+    ''' Devolve a configuração recarregada (ou a mesma, se nada mudou).
+    ''' </summary>
+    Private Shared Function AssociarCadastrosAntigosAoBanco(cfg As Configuracoes, caminhoLog As String) As Configuracoes
+        Try
+            If Not EscopoEmpresa.TemLegadosAmbiguos(cfg) Then Return cfg
+
+            Dim todas As New List(Of EmpresaItem)
+            For Each banco In cfg.Conexoes
+                Using conn = Conexao.Abrir(banco.Servidor, banco.Porta, banco.Banco, banco.Usuario, banco.Senha)
+                    For Each emp In EmpresaService.Listar(conn).Where(Function(e) e.Codigo <> 0)
+                        emp.Conexao = banco
+                        todas.Add(emp)
+                    Next
+                End Using
+            Next
+
+            Dim r = ConfiguracaoService.MigrarEscopoLegado(todas)
+            If r.Associados > 0 Then LogService.Registrar(caminhoLog, $"{r.Associados} cadastro(s) antigo(s) de e-mail/destinatário associado(s) ao banco da empresa.")
+            If r.Ambiguos > 0 Then LogService.Registrar(caminhoLog, $"AVISO: {r.Ambiguos} cadastro(s) antigo(s) de e-mail/destinatário não indicam o banco e o código se repete em mais de um banco; ficam desativados até serem recadastrados em Configurar E-mail.")
+            Return ConfiguracaoService.Carregar()
+        Catch
+            ' Algum banco fora do ar: lista incompleta, não migra agora (a execução abaixo reporta o problema de conexão).
+            Return cfg
         End Try
     End Function
 
@@ -423,29 +456,33 @@ Public Class AgendamentoService
     ''' Usado tanto pelo agendamento quanto pela exportação manual (<see cref="FrmPrincipal"/>),
     ''' pra não duplicar essa lógica em dois lugares.
     ''' </summary>
-    Public Shared Function ObterDestinatarioParaEmpresa(cfg As Configuracoes, conn As NpgsqlConnection, codigoEmpresa As Integer) As String
+    Public Shared Function ObterDestinatarioParaEmpresa(cfg As Configuracoes, conn As NpgsqlConnection, codigoEmpresa As Integer, nomeBanco As String) As String
         Dim origem As String = ""
-        Return ObterDestinatarioParaEmpresa(cfg, conn, codigoEmpresa, origem)
+        Return ObterDestinatarioParaEmpresa(cfg, conn, codigoEmpresa, nomeBanco, origem)
     End Function
 
     ''' <summary>
     ''' Igual à sobrecarga acima, mas também informa em <paramref name="origem"/> DE ONDE
     ''' veio o endereço: "empresa" (cadastrado para a própria empresa, local ou no banco),
     ''' "o destinatário Global" ou "o último destinatário usado manualmente". O agendamento
-    ''' usa isso para avisar no log quando um XML vai para um endereço que NÃO é da empresa.
+    ''' usa isso para só enviar para destinatário PRÓPRIO da empresa.
     ''' </summary>
-    Public Shared Function ObterDestinatarioParaEmpresa(cfg As Configuracoes, conn As NpgsqlConnection, codigoEmpresa As Integer, ByRef origem As String) As String
+    ''' <param name="nomeBanco">
+    ''' Nome (<see cref="ConexaoBanco.Nome"/>) do banco da empresa. Obrigatório para
+    ''' identificar a empresa: o mesmo código existe em bancos diferentes, e o
+    ''' destinatário cadastrado para a empresa 1 de um banco não vale para a empresa 1
+    ''' de outro (ver <see cref="EscopoEmpresa"/>).
+    ''' </param>
+    Public Shared Function ObterDestinatarioParaEmpresa(cfg As Configuracoes, conn As NpgsqlConnection, codigoEmpresa As Integer, nomeBanco As String, ByRef origem As String) As String
         origem = "empresa"
 
-        ' 1) procurar em locais (config.json)
-        If cfg IsNot Nothing AndAlso cfg.DestinatariosLocais IsNot Nothing Then
-            Dim local = cfg.DestinatariosLocais.FirstOrDefault(Function(d) d.CodigoEmpresa = codigoEmpresa AndAlso d.Ativo)
-            If local IsNot Nothing Then
-                Return local.Email
-            End If
+        ' 1) procurar em locais (config.json) — só os cadastrados para ESTA empresa deste banco
+        Dim local = EscopoEmpresa.DestinatariosDaEmpresa(cfg, codigoEmpresa, nomeBanco).FirstOrDefault()
+        If local IsNot Nothing Then
+            Return local.Email
         End If
 
-        ' 2) tentar no DB (SELECT)
+        ' 2) tentar no DB (SELECT) — a conexão já é a do banco da empresa
         Try
             If conn IsNot Nothing Then
                 Dim dbVal = DestinatarioService.ObterPadrao(conn, codigoEmpresa)
@@ -455,10 +492,10 @@ Public Class AgendamentoService
         End Try
 
         ' 3) procurar local Global (codigo 0)
-        If cfg IsNot Nothing AndAlso cfg.DestinatariosLocais IsNot Nothing Then
-            Dim localG = cfg.DestinatariosLocais.FirstOrDefault(Function(d) d.CodigoEmpresa = 0 AndAlso d.Ativo)
+        If codigoEmpresa <> 0 Then
+            Dim localG = EscopoEmpresa.DestinatariosDaEmpresa(cfg, 0, Nothing).FirstOrDefault()
             If localG IsNot Nothing Then
-                origem = If(codigoEmpresa = 0, "empresa", "o destinatário Global")
+                origem = "o destinatário Global"
                 Return localG.Email
             End If
         End If

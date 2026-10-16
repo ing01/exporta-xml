@@ -88,15 +88,9 @@ Public Class FrmEmail
         ' Cadastros antigos (só com o código da empresa) são associados ao banco quando o
         ' código existe em um único banco. Só roda com TODOS os bancos acessíveis: com um
         ' banco fora do ar a lista está incompleta e a associação poderia ficar errada.
-        If erros.Count = 0 AndAlso EscopoEmpresa.TemLegadosAmbiguos(cfg) Then
+        If erros.Count = 0 AndAlso EscopoEmpresa.TemLegados(cfg) Then
             Dim r = ConfiguracaoService.MigrarEscopoLegado(todas)
-            If r.Associados > 0 Then
-                LogService.RegistrarAtividade($"Cadastros de e-mail/destinatário associados ao banco da empresa: {r.Associados}")
-            End If
-            If r.Ambiguos > 0 Then
-                aviso = $"Atenção: {r.Ambiguos} cadastro(s) antigo(s) de destinatário/e-mail não indicavam o banco e o mesmo código de empresa existe em mais de um banco; por segurança estão DESATIVADOS. Recadastre-os em cada empresa."
-                LogService.RegistrarAtividade(aviso)
-            End If
+            If r > 0 Then LogService.RegistrarAtividade($"Cadastros antigos de e-mail/destinatário convertidos para o formato por banco (sem alterar o comportamento): {r}")
             cfg = ConfiguracaoService.Carregar()
         End If
 

@@ -326,7 +326,7 @@ Public Class AgendamentoService
     ''' </summary>
     Private Shared Function AssociarCadastrosAntigosAoBanco(cfg As Configuracoes, caminhoLog As String) As Configuracoes
         Try
-            If Not EscopoEmpresa.TemLegadosAmbiguos(cfg) Then Return cfg
+            If Not EscopoEmpresa.TemLegados(cfg) Then Return cfg
 
             Dim todas As New List(Of EmpresaItem)
             For Each banco In cfg.Conexoes
@@ -339,8 +339,7 @@ Public Class AgendamentoService
             Next
 
             Dim r = ConfiguracaoService.MigrarEscopoLegado(todas)
-            If r.Associados > 0 Then LogService.Registrar(caminhoLog, $"{r.Associados} cadastro(s) antigo(s) de e-mail/destinatário associado(s) ao banco da empresa.")
-            If r.Ambiguos > 0 Then LogService.Registrar(caminhoLog, $"AVISO: {r.Ambiguos} cadastro(s) antigo(s) de e-mail/destinatário não indicam o banco e o código se repete em mais de um banco; ficam desativados até serem recadastrados em Configurar E-mail.")
+            If r > 0 Then LogService.Registrar(caminhoLog, $"{r} cadastro(s) antigo(s) de e-mail/destinatário convertido(s) para o formato por banco (sem alterar o comportamento).")
             Return ConfiguracaoService.Carregar()
         Catch
             ' Algum banco fora do ar: lista incompleta, não migra agora (a execução abaixo reporta o problema de conexão).

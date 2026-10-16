@@ -69,55 +69,84 @@ Public Class ConfiguracaoService
     End Sub
 
     ''' <summary>
-    ''' Associa a um banco os cadastros ANTIGOS de destinatário/e-mail (que só
-    ''' tinham o código da empresa). Só associa quando o código existe em UM único
-    ''' banco; se o mesmo código aparece em mais de um banco, é ambíguo (não dá
-    ''' para saber a qual empresa o cadastro se destinava) e o cadastro continua
-    ''' sem uso até ser recadastrado — melhor isso do que enviar o XML para a
-    ''' empresa errada. Chame SÓ quando conseguiu listar as empresas de TODOS os
-    ''' bancos (se um banco estava fora do ar, a lista está incompleta).
+    ''' Converte os cadastros ANTIGOS de destinatário/e-mail (que só tinham o código da
+    ''' empresa e por isso valiam para o mesmo código em todos os bancos) em cadastros
+    ''' POR BANCO: um para cada banco que tem empresa com aquele código. O comportamento
+    ''' de envio fica exatamente igual ao de antes (nada deixa de funcionar), mas cada
+    ''' cópia passa a poder ser editada/removida sem afetar a empresa de mesmo código de
+    ''' outro banco. Se o código não existe em banco nenhum, o cadastro é mantido como está.
+    ''' Antes da primeira conversão grava uma cópia de segurança (<c>config.json.antes-da-migracao</c>).
+    ''' Chame SÓ quando conseguiu listar as empresas de TODOS os bancos (com um banco fora
+    ''' do ar a lista está incompleta).
     ''' </summary>
-    ''' <returns>(quantos foram associados, quantos continuam ambíguos)</returns>
-    Public Shared Function MigrarEscopoLegado(empresasDeTodosOsBancos As IEnumerable(Of EmpresaItem)) As (Associados As Integer, Ambiguos As Integer)
+    ''' <returns>Quantos cadastros antigos foram convertidos.</returns>
+    Public Shared Function MigrarEscopoLegado(empresasDeTodosOsBancos As IEnumerable(Of EmpresaItem)) As Integer
         SyncLock TravaArquivo
             Dim cfg = Carregar()
-            If cfg.Conexoes Is Nothing OrElse cfg.Conexoes.Count <= 1 Then Return (0, 0)
+            If cfg.Conexoes Is Nothing OrElse cfg.Conexoes.Count <= 1 Then Return 0
 
             Dim empresas = empresasDeTodosOsBancos.Where(Function(e) e.Codigo <> 0 AndAlso e.Conexao IsNot Nothing).ToList()
-            Dim associados As Integer = 0, ambiguos As Integer = 0
+            Dim bancosDoCodigo As Func(Of Integer, List(Of String)) =
+                Function(codigo) empresas.Where(Function(e) e.Codigo = codigo).Select(Function(e) e.Conexao.Nome).Distinct(StringComparer.OrdinalIgnoreCase).ToList()
 
-            Dim resolver As Func(Of Integer, String) =
-                Function(codigo)
-                    Dim bancos = empresas.Where(Function(e) e.Codigo = codigo).Select(Function(e) e.Conexao.Nome).Distinct(StringComparer.OrdinalIgnoreCase).ToList()
-                    Return If(bancos.Count = 1, bancos(0), Nothing)
-                End Function
+            Dim convertidos As Integer = 0
+            Dim copiaFeita As Boolean = False
+            Dim garantirCopia As Action =
+                Sub()
+                    If copiaFeita Then Return
+                    copiaFeita = True
+                    Try
+                        Dim destino = Caminho & ".antes-da-migracao"
+                        If File.Exists(Caminho) AndAlso Not File.Exists(destino) Then File.Copy(Caminho, destino)
+                    Catch
+                    End Try
+                End Sub
 
             If cfg.DestinatariosLocais IsNot Nothing Then
-                For Each d In cfg.DestinatariosLocais.Where(Function(x) x.CodigoEmpresa <> 0 AndAlso String.IsNullOrWhiteSpace(x.NomeBanco))
-                    Dim banco = resolver(d.CodigoEmpresa)
-                    If banco IsNot Nothing Then
-                        d.NomeBanco = banco : associados += 1
-                    Else
-                        ambiguos += 1
-                    End If
+                For Each d In cfg.DestinatariosLocais.Where(Function(x) x.CodigoEmpresa <> 0 AndAlso String.IsNullOrWhiteSpace(x.NomeBanco)).ToList()
+                    Dim bancos = bancosDoCodigo(d.CodigoEmpresa)
+                    If bancos.Count = 0 Then Continue For
+
+                    garantirCopia()
+                    cfg.DestinatariosLocais.Remove(d)
+                    For Each b In bancos
+                        Dim jaExiste = cfg.DestinatariosLocais.Any(Function(x) x.CodigoEmpresa = d.CodigoEmpresa AndAlso
+                            String.Equals(x.NomeBanco, b, StringComparison.OrdinalIgnoreCase) AndAlso
+                            String.Equals(x.Email, d.Email, StringComparison.OrdinalIgnoreCase))
+                        If Not jaExiste Then
+                            cfg.DestinatariosLocais.Add(New DestinatarioLocal With {
+                                .CodigoEmpresa = d.CodigoEmpresa, .NomeBanco = b, .Email = d.Email,
+                                .Descricao = d.Descricao, .Ativo = d.Ativo})
+                        End If
+                    Next
+                    convertidos += 1
                 Next
             End If
 
             If cfg.ConfiguracoesEmailPorEmpresa IsNot Nothing Then
-                For Each c In cfg.ConfiguracoesEmailPorEmpresa.Where(Function(x) x.CodigoEmpresa <> 0 AndAlso String.IsNullOrWhiteSpace(x.NomeBanco))
-                    Dim banco = resolver(c.CodigoEmpresa)
-                    If banco IsNot Nothing Then
-                        c.NomeBanco = banco : associados += 1
-                    Else
-                        ambiguos += 1
-                    End If
+                For Each c In cfg.ConfiguracoesEmailPorEmpresa.Where(Function(x) x.CodigoEmpresa <> 0 AndAlso String.IsNullOrWhiteSpace(x.NomeBanco)).ToList()
+                    Dim bancos = bancosDoCodigo(c.CodigoEmpresa)
+                    If bancos.Count = 0 Then Continue For
+
+                    garantirCopia()
+                    cfg.ConfiguracoesEmailPorEmpresa.Remove(c)
+                    For Each b In bancos
+                        ' Se já existe uma configuração específica para esse banco, ela prevalece.
+                        If cfg.ConfiguracoesEmailPorEmpresa.Any(Function(x) x.CodigoEmpresa = c.CodigoEmpresa AndAlso String.Equals(x.NomeBanco, b, StringComparison.OrdinalIgnoreCase)) Then Continue For
+                        cfg.ConfiguracoesEmailPorEmpresa.Add(New ConfiguracaoEmailEmpresa With {
+                            .CodigoEmpresa = c.CodigoEmpresa, .NomeBanco = b, .Origem = c.Origem,
+                            .ServidorSMTP = c.ServidorSMTP, .PortaSMTP = c.PortaSMTP, .UsuarioSMTP = c.UsuarioSMTP,
+                            .SenhaSMTP = c.SenhaSMTP, .EmailRemetente = c.EmailRemetente, .UsarSSL = c.UsarSSL})
+                    Next
+                    convertidos += 1
                 Next
             End If
 
-            If associados > 0 Then Salvar(cfg)
-            Return (associados, ambiguos)
+            If convertidos > 0 Then Salvar(cfg)
+            Return convertidos
         End SyncLock
     End Function
+
 
     ''' <summary>Trava de escrita/leitura dentro do mesmo processo (entre processos, a troca atômica do arquivo cobre o caso).</summary>
     Private Shared ReadOnly TravaArquivo As New Object()
@@ -130,6 +159,17 @@ Public Class ConfiguracaoService
     ''' limpa com <see cref="ConsumirAvisoLeitura"/>.
     ''' </summary>
     Private Shared _avisoLeitura As String
+
+    ''' <summary>Último texto do config.json lido com sucesso (usado se o arquivo estiver momentaneamente inacessível).</summary>
+    Private Shared _ultimoTextoBom As String
+
+    ''' <summary>Leitura tolerante: aceita vírgula sobrando, comentários e números escritos como texto ("Porta": "5432") de configs antigos.</summary>
+    Private Shared ReadOnly OpcoesLeitura As New JsonSerializerOptions With {
+        .AllowTrailingCommas = True,
+        .ReadCommentHandling = JsonCommentHandling.Skip,
+        .NumberHandling = Serialization.JsonNumberHandling.AllowReadingFromString,
+        .PropertyNameCaseInsensitive = True
+    }
 
     Public Shared Function ConsumirAvisoLeitura() As String
         Dim aviso = _avisoLeitura
@@ -206,24 +246,45 @@ Public Class ConfiguracaoService
         Dim erroOriginal As Exception = Nothing
 
         ' Outro processo pode estar no meio da troca do arquivo: tenta algumas vezes antes de desistir.
-        For tentativa = 1 To 3
+        Dim falhaDeAcesso As Boolean = False
+        For tentativa = 1 To 5
             Try
-                Return JsonSerializer.Deserialize(Of Configuracoes)(File.ReadAllText(Caminho))
-            Catch ex As IOException
+                Dim texto As String = File.ReadAllText(Caminho)
+                Dim lida = JsonSerializer.Deserialize(Of Configuracoes)(texto, OpcoesLeitura)
+                If lida IsNot Nothing Then
+                    _ultimoTextoBom = texto
+                    Return lida
+                End If
+                erroOriginal = New JsonException("O arquivo de configuração está vazio.")
+                Exit For
+            Catch ex As Exception When TypeOf ex Is IOException OrElse TypeOf ex Is UnauthorizedAccessException
+                ' Arquivo em uso por outro programa/serviço ou sem permissão NESTE instante.
+                ' Isto NÃO é arquivo corrompido: nunca pode virar "configuração em branco" (e
+                ' depois ser gravada por cima, apagando tudo).
                 erroOriginal = ex
-                Threading.Thread.Sleep(150)
+                falhaDeAcesso = True
+                Threading.Thread.Sleep(200)
             Catch ex As JsonException
                 erroOriginal = ex
+                falhaDeAcesso = False
                 Exit For
             End Try
         Next
+
+        If falhaDeAcesso Then
+            ' Usa a última leitura boa em memória; se nunca houve uma, avisa em vez de inventar uma configuração vazia.
+            If _ultimoTextoBom IsNot Nothing Then
+                Return JsonSerializer.Deserialize(Of Configuracoes)(_ultimoTextoBom, OpcoesLeitura)
+            End If
+            Throw New IOException("Não foi possível ler o arquivo de configuração agora (em uso por outro programa ou sem permissão). Feche outras janelas do ExportaXML e tente de novo.", erroOriginal)
+        End If
 
         LogService.Registrar(Path.Combine(LogService.PastaLogs, "Configuracao.log"),
                              $"config.json ilegível: {ErroAmigavel.Traduzir(erroOriginal)} | Técnico: {erroOriginal}")
 
         Try
             If File.Exists(CaminhoBackup) Then
-                Dim doBackup = JsonSerializer.Deserialize(Of Configuracoes)(File.ReadAllText(CaminhoBackup))
+                Dim doBackup = JsonSerializer.Deserialize(Of Configuracoes)(File.ReadAllText(CaminhoBackup), OpcoesLeitura)
                 If doBackup IsNot Nothing Then
                     _avisoLeitura = "O arquivo de configuração estava danificado. Foi restaurada a cópia de segurança anterior; confira se as configurações estão como esperado."
                     Return doBackup

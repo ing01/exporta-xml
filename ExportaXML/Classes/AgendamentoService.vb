@@ -55,6 +55,43 @@ Public Class AgendamentoService
     End Function
 
     ''' <summary>
+    ''' Frase (em português) dizendo POR QUE o agendamento vai ou não executar agora.
+    ''' Registrada nos logs na abertura do programa, quando as configurações mudam e
+    ''' quando a situação muda — sem isso, "o agendamento não rodou" não tinha como ser
+    ''' investigado depois (o log só mostrava o que foi feito, nunca por que nada foi feito).
+    ''' </summary>
+    Public Shared Function DescreverSituacao(cfg As Configuracoes) As String
+        Dim competencia As String = CompetenciaAnterior(Date.Today)
+        Dim horario As String = $"{cfg.HoraAgendamento:00}:{cfg.MinutoAgendamento:00}"
+        Dim dia As Integer = DiaEfetivo(cfg.DiaAgendamento, Date.Today)
+
+        If Not cfg.AgendamentoAtivo Then
+            Return "Agendamento DESLIGADO (caixa ""Ativar agendamento"" desmarcada): nenhum envio automático será feito."
+        End If
+
+        If cfg.UltimaCompetenciaExecutada = competencia Then
+            Return $"Agendamento LIGADO (dia {cfg.DiaAgendamento}, {horario}): a competência {competencia} já foi concluída; o próximo envio será no mês seguinte."
+        End If
+
+        If Date.Today.Day < dia Then
+            Return $"Agendamento LIGADO: aguardando o dia {dia} deste mês às {horario} para enviar a competência {competencia}."
+        End If
+
+        If DateTime.Now.TimeOfDay < New TimeSpan(cfg.HoraAgendamento, cfg.MinutoAgendamento, 0) Then
+            Return $"Agendamento LIGADO: hoje é o dia, aguardando as {horario} para enviar a competência {competencia}."
+        End If
+
+        If PendenciaAgendamentoService.DeveAguardar(competencia) Then
+            Dim p = PendenciaAgendamentoService.Obter()
+            Return If(p IsNot Nothing AndAlso p.Tentativas >= PendenciaAgendamentoService.MaximoTentativas,
+                $"Agendamento LIGADO: a competência {competencia} falhou {p.Tentativas} vezes e o programa parou de tentar sozinho; use ""Executar agora"" depois de corrigir o problema.",
+                $"Agendamento LIGADO: competência {competencia} com falha anterior; nova tentativa automática após {p?.ProximaTentativa:dd/MM HH:mm}.")
+        End If
+
+        Return $"Agendamento LIGADO e na hora de executar a competência {competencia}."
+    End Function
+
+    ''' <summary>
     ''' Ajusta <paramref name="diaConfigurado"/> (1 a 31) pro mês de
     ''' <paramref name="referencia"/>: se esse dia não existir nesse mês (ex.:
     ''' 31 em abril, 30/31 em fevereiro), usa o último dia válido do mês em
@@ -86,7 +123,7 @@ Public Class AgendamentoService
     ''' <remarks>
     ''' Não valida se já deveria rodar — quem decide isso é
     ''' <see cref="DeveExecutar"/> (chamado antes, pelo código da tela) ou o
-    ''' botão "Testar agora" (que ignora De propósito essa checagem). Cada
+    ''' botão "Executar agora" (que ignora De propósito essa checagem). Cada
     ''' etapa e qualquer erro são gravados em
     ''' <c>%LocalAppData%\ExportaXML\Logs\Agendamento_{competencia}.log</c>. Se
     ''' algo falhar no meio do caminho (mesmo que só num dos bancos), o erro é
@@ -97,7 +134,8 @@ Public Class AgendamentoService
     Public Shared Function ExecutarAgendamentoMensal(
         cfg As Configuracoes,
         Optional atualizarStatus As Action(Of String) = Nothing,
-        Optional forcar As Boolean = False) As Boolean
+        Optional forcar As Boolean = False,
+        Optional reenviarTodas As Boolean = True) As Boolean
 
         Dim dataFinal As Date = New Date(Date.Today.Year, Date.Today.Month, 1).AddDays(-1)
         Dim dataInicial As New Date(dataFinal.Year, dataFinal.Month, 1)
@@ -163,7 +201,7 @@ Public Class AgendamentoService
                         For Each empresa In empresas
                             Dim chaveEmpresa As String = $"{banco.Nome}|{empresa.Codigo}"
 
-                            If Not forcar AndAlso PendenciaAgendamentoService.JaEnviada(competencia, chaveEmpresa) Then
+                            If Not (forcar AndAlso reenviarTodas) AndAlso PendenciaAgendamentoService.JaEnviada(competencia, chaveEmpresa) Then
                                 LogService.Registrar(caminhoLog, $"{empresa.Nome}: e-mail desta competência já foi enviado antes, não será repetido.")
                                 Continue For
                             End If

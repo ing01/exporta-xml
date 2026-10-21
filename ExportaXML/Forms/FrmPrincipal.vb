@@ -1308,27 +1308,48 @@ Public Class FrmPrincipal
     End Function
 
     ''' <summary>
-    ''' Botão "Testar agora": executa o agendamento na hora, ignorando o
-    ''' horário configurado e se a competência já rodou este mês — útil pra
-    ''' validar toda a cadeia (exportação + e-mail + log) sem esperar o dia 01.
+    ''' Botão "Executar agora": executa o agendamento do mês anterior NA HORA, quando o
+    ''' usuário quiser — ignora dia/horário configurados e se a competência já rodou.
+    ''' Serve para (1) enviar fora de hora (ex.: o computador estava desligado no dia
+    ''' programado) e (2) validar toda a cadeia (exportação + e-mail + log).
     ''' </summary>
     ''' <remarks>
-    ''' ATENÇÃO: isso executa de verdade — gera o ZIP com dados reais do banco
-    ''' e envia um e-mail real. Ao terminar, também grava
-    ''' <c>UltimaCompetenciaExecutada</c>, então rodar isso "consome" a
-    ''' competência do mês (a verificação automática não dispara de novo pra
-    ''' esse mesmo mês, mas o próprio botão "Testar agora" ignora isso e roda
-    ''' de novo se clicado outra vez).
+    ''' ATENÇÃO: executa de verdade — gera os ZIPs com dados reais do banco e envia e-mails
+    ''' reais. Por isso pede confirmação antes. Se parte das empresas já recebeu a competência
+    ''' (execução anterior parcial ou interrompida), pergunta se reenvia só as que faltam ou
+    ''' todas. Ao terminar grava <c>UltimaCompetenciaExecutada</c> (consome a competência).
     ''' </remarks>
     Private Sub btnTestarAgendamento_Click(sender As Object, e As EventArgs) Handles btnTestarAgendamento.Click
-        LogService.RegistrarAtividade("Testar Agendamento (manual)")
+        Dim competencia As String = AgendamentoService.CompetenciaAnterior(Date.Today)
+        Dim enviadas As Integer = PendenciaAgendamentoService.ObterDaCompetencia(competencia).EmpresasEnviadas.Count
+        Dim reenviarTodas As Boolean = True
+
+        If enviadas > 0 Then
+            Dim resp = MessageBox.Show(
+                $"{enviadas} empresa(s) já receberam o e-mail da competência {competencia}." & vbCrLf & vbCrLf &
+                "Sim = enviar SÓ para as empresas que faltam" & vbCrLf &
+                "Não = reenviar para TODAS as empresas" & vbCrLf &
+                "Cancelar = não fazer nada",
+                "Executar agendamento agora", MessageBoxButtons.YesNoCancel, MessageBoxIcon.Question)
+            If resp = DialogResult.Cancel Then Exit Sub
+            reenviarTodas = (resp = DialogResult.No)
+        Else
+            Dim resp = MessageBox.Show(
+                $"Isto vai exportar os XMLs de {competencia} (o mês anterior inteiro) e ENVIAR OS E-MAILS DE VERDADE para as empresas que têm destinatário cadastrado." & vbCrLf & vbCrLf &
+                "Não depende do dia nem do horário agendados." & vbCrLf & vbCrLf &
+                "Deseja executar agora?",
+                "Executar agendamento agora", MessageBoxButtons.YesNo, MessageBoxIcon.Question, MessageBoxDefaultButton.Button2)
+            If resp <> DialogResult.Yes Then Exit Sub
+        End If
+
+        LogService.RegistrarAtividade($"Executar agendamento agora (manual) - competência {competencia}, {If(reenviarTodas, "todas as empresas", "somente as pendentes")}")
 
         Try
             btnTestarAgendamento.Enabled = False
-            Dim executou As Boolean = ExecutarAgendamento(forcar:=True)
+            Dim executou As Boolean = ExecutarAgendamento(forcar:=True, reenviarTodas:=reenviarTodas)
 
             If Not executou Then
-                LogService.RegistrarAtividade("Testar Agendamento (manual) -> recusado: já há exportação/agendamento em andamento")
+                LogService.RegistrarAtividade("Executar agendamento agora (manual) -> recusado: já há exportação/agendamento em andamento")
                 MessageBox.Show(
                     "Já existe uma exportação ou um agendamento em andamento (neste programa ou no serviço do Windows). Aguarde terminar e tente de novo.",
                     "Agendamento",
@@ -1337,7 +1358,7 @@ Public Class FrmPrincipal
                 Exit Sub
             End If
 
-            LogService.RegistrarAtividade("Testar Agendamento (manual) -> concluído")
+            LogService.RegistrarAtividade("Executar agendamento agora (manual) -> concluído")
 
             Dim pendencia = PendenciaAgendamentoService.Obter()
             If pendencia IsNot Nothing AndAlso pendencia.HaFalha Then
@@ -1353,7 +1374,7 @@ Public Class FrmPrincipal
                     MessageBoxIcon.Information)
             End If
         Catch ex As Exception
-            LogService.RegistrarAtividade($"Testar Agendamento (manual) -> ERRO: {ErroAmigavel.Traduzir(ex)} | Técnico: {ex}")
+            LogService.RegistrarAtividade($"Executar agendamento agora (manual) -> ERRO: {ErroAmigavel.Traduzir(ex)} | Técnico: {ex}")
             MessageBox.Show("Não foi possível testar o agendamento." & vbCrLf & vbCrLf & ErroAmigavel.Traduzir(ex), "Erro", MessageBoxButtons.OK, MessageBoxIcon.Error)
         Finally
             btnTestarAgendamento.Enabled = True
@@ -1392,6 +1413,7 @@ Public Class FrmPrincipal
             VerificarPendenciaEAvisar()
 
             Dim cfg = ConfiguracaoService.Carregar()
+            LogarSituacaoAgendamento(cfg)
             If Not AgendamentoService.DeveExecutar(cfg) Then Exit Sub
 
             ' Já tem uma execução em curso (ou em espera por falha anterior)? Nem dispara outra thread.
@@ -1413,6 +1435,24 @@ Public Class FrmPrincipal
             End If
         End Try
     End Sub
+
+    ''' <summary>
+    ''' Grava no log de Atividade, em português, a situação do agendamento (ligado/desligado,
+    ''' dia, horário, se está aguardando). Só grava quando a frase muda (ou vira o dia), então
+    ''' aparece na abertura do programa, quando alguém altera as configurações e na virada da
+    ''' situação — e permite descobrir depois POR QUE um envio não aconteceu.
+    ''' </summary>
+    Private Sub LogarSituacaoAgendamento(cfg As Configuracoes)
+        Try
+            Dim situacao As String = $"{Date.Today:yyyyMMdd}|{AgendamentoService.DescreverSituacao(cfg)}"
+            If situacao = _ultimaSituacaoLogada Then Return
+            _ultimaSituacaoLogada = situacao
+            LogService.RegistrarAtividade("Agendamento: " & situacao.Substring(situacao.IndexOf("|"c) + 1))
+        Catch
+        End Try
+    End Sub
+
+    Private _ultimaSituacaoLogada As String
 
     ''' <summary>Último erro de verificação já logado — evita repetir a mesma linha a cada minuto.</summary>
     Private _ultimoErroVerificacao As String
@@ -1445,7 +1485,7 @@ Public Class FrmPrincipal
     ''' Abre uma conexão e efetivamente chama <see cref="AgendamentoService.ExecutarAgendamentoMensal"/>.
     ''' </summary>
     ''' <param name="forcar">
-    ''' True quando chamado pelo botão "Testar agora" (roda direto na thread de
+    ''' True quando chamado pelo botão "Executar agora" (roda direto na thread de
     ''' interface, de propósito — o usuário já espera uma pausa nesse caso, e o
     ''' botão fica desabilitado durante a execução); False quando chamado pela
     ''' verificação automática, que já joga a chamada pra uma thread de fundo
@@ -1453,12 +1493,12 @@ Public Class FrmPrincipal
     ''' </param>
     ''' <remarks>
     ''' O callback de status usa <see cref="Control.Invoke"/> porque este método
-    ''' pode ser chamado tanto da thread de interface (botão "Testar agora")
+    ''' pode ser chamado tanto da thread de interface (botão "Executar agora")
     ''' quanto de uma thread de fundo (verificação automática) — <c>Invoke</c>
     ''' funciona corretamente nos dois casos.
     ''' </remarks>
     ''' <returns>False se não executou (ainda não é hora, ou já há outra execução em andamento).</returns>
-    Private Function ExecutarAgendamento(forcar As Boolean) As Boolean
+    Private Function ExecutarAgendamento(forcar As Boolean, Optional reenviarTodas As Boolean = True) As Boolean
         Dim cfg = ConfiguracaoService.Carregar()
 
         If Not forcar AndAlso Not AgendamentoService.DeveExecutar(cfg) Then Return False
@@ -1477,7 +1517,8 @@ Public Class FrmPrincipal
                 Catch ex As ObjectDisposedException
                 End Try
             End Sub,
-            forcar)
+            forcar,
+            reenviarTodas)
     End Function
 
     '=========================

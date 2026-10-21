@@ -1006,7 +1006,7 @@ Partial Class FrmPrincipal
         btnTestarAgendamento.Name = "btnTestarAgendamento"
         btnTestarAgendamento.Size = New Size(120, 26)
         btnTestarAgendamento.TabIndex = 6
-        btnTestarAgendamento.Text = "Testar agora"
+        btnTestarAgendamento.Text = "Executar agora"
         btnTestarAgendamento.UseVisualStyleBackColor = True
         ' 
         ' btnRestaurarVersao

@@ -38,9 +38,20 @@ Public Class AgendamentoWorker
     ''' na execução de verdade já são tratadas e logadas dentro de
     ''' AgendamentoService.ExecutarAgendamentoMensal.
     ''' </summary>
+    Private Shared _ultimaSituacao As String
+
+    ''' <summary>Registra em Servico.log, em português, a situação do agendamento (só quando muda ou vira o dia).</summary>
+    Private Shared Sub LogarSituacao(cfg As Configuracoes)
+        Dim situacao As String = $"{Date.Today:yyyyMMdd}|{AgendamentoService.DescreverSituacao(cfg)}"
+        If situacao = _ultimaSituacao Then Return
+        _ultimaSituacao = situacao
+        LogService.Registrar(Path.Combine(LogService.PastaLogs, "Servico.log"), "Agendamento: " & situacao.Substring(situacao.IndexOf("|"c) + 1))
+    End Sub
+
     Private Shared Sub VerificarEExecutarAgendamento()
         Try
             Dim cfg = ConfiguracaoService.Carregar()
+            LogarSituacao(cfg)
             If Not AgendamentoService.DeveExecutar(cfg) Then Return
 
             AgendamentoService.ExecutarAgendamentoMensal(cfg)

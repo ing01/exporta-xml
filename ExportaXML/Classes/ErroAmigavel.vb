@@ -97,6 +97,12 @@ Public Class ErroAmigavel
         End If
 
         ' ---------- E-mail ----------
+        ' O Gmail/Outlook, em vez de responder "senha inválida", muitas vezes FECHAM a conexão com um texto do tipo
+        ' "5.7.8 Username and Password not accepted" / "BadCredentials" / "535" — o MailKit reporta isso como "servidor desconectou".
+        If TemTextoDeCredencial(ex) Then
+            Return "O servidor de e-mail recusou o usuário ou a senha. Confira em Configurar E-mail (em Gmail/Outlook é preciso usar uma ""senha de aplicativo"" de 16 letras, não a senha normal da conta, e a verificação em duas etapas precisa estar ligada)."
+        End If
+
         If TypeOf ex Is AuthenticationException Then
             Return "O servidor de e-mail recusou o usuário ou a senha. Confira em Configurar E-mail (em Gmail/Outlook é preciso usar uma ""senha de aplicativo"", não a senha normal)."
         End If
@@ -173,6 +179,23 @@ Public Class ErroAmigavel
     End Function
 
     ''' <summary>Procura um SocketException em toda a cadeia de exceções internas (inclusive dentro de AggregateException).</summary>
+    Private Shared Function TemTextoDeCredencial(ex As Exception) As Boolean
+        Dim atual = ex
+        Do While atual IsNot Nothing
+            Dim m As String = If(atual.Message, "")
+            If m.Contains("Username and Password not accepted", StringComparison.OrdinalIgnoreCase) OrElse
+               m.Contains("BadCredentials", StringComparison.OrdinalIgnoreCase) OrElse
+               m.Contains("5.7.8", StringComparison.Ordinal) OrElse
+               m.Contains("5.7.139", StringComparison.Ordinal) OrElse
+               m.Contains("authentication failed", StringComparison.OrdinalIgnoreCase) OrElse
+               m.Contains("535 ", StringComparison.Ordinal) Then
+                Return True
+            End If
+            atual = atual.InnerException
+        Loop
+        Return False
+    End Function
+
     Private Shared Function AcharSocket(ex As Exception) As SocketException
         If ex Is Nothing Then Return Nothing
         Dim s = TryCast(ex, SocketException)

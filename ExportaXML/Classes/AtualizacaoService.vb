@@ -18,6 +18,8 @@ Public Class AtualizacaoService
 
     Public Const RepositorioGitHub As String = "https://github.com/ing01/exporta-xml"
 
+    Private Shared _ultimoLogSemNovidade As DateTime = DateTime.MinValue
+
     Private Shared ReadOnly CaminhoLog As String =
         Path.Combine(LogService.PastaLogs, "Atualizacao.log")
 
@@ -68,7 +70,12 @@ Public Class AtualizacaoService
             If novaVersao IsNot Nothing Then
                 LogService.Registrar(CaminhoLog, $"Verificação: versão instalada {mgr.CurrentVersion}, nova versão encontrada: {novaVersao.TargetFullRelease.Version}.")
             Else
-                LogService.Registrar(CaminhoLog, $"Verificação: versão instalada {mgr.CurrentVersion}, nenhuma atualização disponível.")
+                ' Antes gravava uma linha a cada 30 min (quase 2000 linhas em 40 dias). Agora no máximo uma a cada 6 h:
+                ' ainda serve de "sinal de vida" do programa nos logs, sem encher o arquivo.
+                If DateTime.Now - _ultimoLogSemNovidade >= TimeSpan.FromHours(6) Then
+                    _ultimoLogSemNovidade = DateTime.Now
+                    LogService.Registrar(CaminhoLog, $"Verificação: versão instalada {mgr.CurrentVersion}, nenhuma atualização disponível.")
+                End If
             End If
 
             Return novaVersao

@@ -75,7 +75,7 @@ Public Class FrmEmail
                 Using conn = Conexao.Abrir(banco.Servidor, banco.Porta, banco.Banco, banco.Usuario, banco.Senha)
                     For Each emp In EmpresaService.Listar(conn).Where(Function(e) e.Codigo <> 0)
                         emp.Conexao = banco
-                        emp.NomeExibicao = If(cfg.Conexoes.Count > 1, $"{emp.Nome} ({banco.Nome})", emp.Nome)
+                        emp.NomeExibicao = EmpresaItem.MontarNomeExibicao(emp.Nome, emp.CNPJ, banco.Nome, cfg.Conexoes.Count > 1)
                         todas.Add(emp)
                     Next
                 End Using

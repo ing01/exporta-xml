@@ -99,7 +99,7 @@ Public Class FrmOpcoesEnvio
         cboConta.Items.Add(New OpcaoConta With {.Nome = "Global (padrão)", .Codigo = 0, .Conexao = conexaoGlobal})
         For Each emp In empresas
             cboConta.Items.Add(New OpcaoConta With {
-                .Nome = If(emp.Conexao IsNot Nothing AndAlso _cfg.Conexoes.Count > 1, $"{emp.Nome} ({emp.Conexao.Nome})", emp.Nome),
+                .Nome = If(String.IsNullOrWhiteSpace(emp.NomeExibicao), EmpresaItem.MontarNomeExibicao(emp.Nome, emp.CNPJ, emp.Conexao?.Nome, _cfg.Conexoes.Count > 1), emp.NomeExibicao),
                 .Codigo = emp.Codigo,
                 .Conexao = emp.Conexao})
         Next

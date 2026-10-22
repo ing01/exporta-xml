@@ -897,7 +897,11 @@ Public Class FrmPrincipal
         Dim msgCodificacao As String = ""
 
         cboEmpresa.DataSource = todasEmpresas
-        cboEmpresa.DisplayMember = If(cfg.Conexoes.Count > 1, "NomeExibicao", "Nome")
+        cboEmpresa.DisplayMember = "NomeExibicao"
+        ' O texto agora é "CNPJ - NOME" e é maior que a caixa: a lista aberta fica mais larga e o texto completo
+        ' aparece também ao passar o mouse.
+        cboEmpresa.DropDownWidth = 560
+        AtualizarDicaEmpresa()
 
         Dim itemParaSelecionar = todasEmpresas.FirstOrDefault(Function(it) it.Codigo = cfg.UltimaEmpresa)
         cboEmpresa.SelectedItem = If(itemParaSelecionar, todasEmpresas(0))
@@ -938,7 +942,7 @@ Public Class FrmPrincipal
                         ' alterado em outra frente pra permitir setar direto em FrmEmail) —
                         ' precisa ser preenchido aqui, senão a combo mostra tudo em branco
                         ' quando há mais de um banco (ver cboEmpresa.DisplayMember abaixo).
-                        empresa.NomeExibicao = If(cfg.Conexoes.Count > 1, $"{empresa.Nome} ({banco.Nome})", empresa.Nome)
+                        empresa.NomeExibicao = EmpresaItem.MontarNomeExibicao(empresa.Nome, empresa.CNPJ, banco.Nome, cfg.Conexoes.Count > 1)
                         todasEmpresas.Add(empresa)
                     Next
                 End Using
@@ -1040,7 +1044,16 @@ Public Class FrmPrincipal
     ''' nome do arquivo de destino (mantendo a pasta atual), pra refletir a
     ''' nova empresa mesmo antes de clicar em Exportar.
     ''' </summary>
+    ''' <summary>Dica com o texto completo "CNPJ - NOME (Banco)" da empresa selecionada (a caixa é estreita).</summary>
+    Private Sub AtualizarDicaEmpresa()
+        Dim item = TryCast(cboEmpresa.SelectedItem, EmpresaItem)
+        _dicaEmpresa.SetToolTip(cboEmpresa, If(item?.NomeExibicao, ""))
+    End Sub
+
+    Private ReadOnly _dicaEmpresa As New ToolTip()
+
     Private Async Sub cboEmpresa_SelectedIndexChanged(sender As Object, e As EventArgs) Handles cboEmpresa.SelectedIndexChanged
+        AtualizarDicaEmpresa()
         If carregando Then Exit Sub
 
         Dim empresaSelecionada = TryCast(cboEmpresa.SelectedItem, EmpresaItem)
